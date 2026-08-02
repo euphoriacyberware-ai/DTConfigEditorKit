@@ -97,6 +97,20 @@ struct FieldRegistryTests {
         }
     }
 
+    @Test func allDescriptorsHaveKeyPaths() {
+        for desc in FieldRegistry.descriptors {
+            let found: Bool = switch desc.controlType {
+            case .toggle:       DrawThingsConfiguration.boolKeyPaths[desc.key] != nil
+            case .integerField: DrawThingsConfiguration.intKeyPaths[desc.key] != nil
+            case .decimalField: DrawThingsConfiguration.doubleKeyPaths[desc.key] != nil
+            case .textField:    DrawThingsConfiguration.stringKeyPaths[desc.key] != nil
+            case .optionalText: DrawThingsConfiguration.optionalStringKeyPaths[desc.key] != nil
+            case .readOnly:     DrawThingsConfiguration.intKeyPaths[desc.key] != nil
+            }
+            #expect(found, "No keypath for \(desc.key) (\(desc.controlType))")
+        }
+    }
+
     @Test func spotCheckLabels() {
         #expect(FieldRegistry.byKey["guidanceScale"]?.label == "Guidance Scale")
         #expect(FieldRegistry.byKey["cfgZeroStar"]?.label == "CFG-Zero*")
