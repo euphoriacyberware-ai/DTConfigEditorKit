@@ -151,6 +151,62 @@ struct DrawThingsConfigurationTests {
         #expect(config.overflow.isEmpty, "All fixture keys should be known — overflow should be empty")
     }
 
+    // MARK: - Step 3: Null/empty-string normalization
+
+    @Test func nullableFieldsNormalizeNullToNil() throws {
+        let json = """
+        {"upscaler": null, "faceRestoration": null, "refinerModel": null, "clipLText": null, "openClipGText": null}
+        """
+        let config = try DrawThingsConfiguration(jsonData: Data(json.utf8))
+
+        #expect(config.upscaler == nil)
+        #expect(config.faceRestoration == nil)
+        #expect(config.refinerModel == nil)
+        #expect(config.clipLText == nil)
+        #expect(config.openClipGText == nil)
+    }
+
+    @Test func nullableFieldsNormalizeEmptyStringToNil() throws {
+        let json = """
+        {"upscaler": "", "faceRestoration": "", "refinerModel": "", "clipLText": "", "openClipGText": ""}
+        """
+        let config = try DrawThingsConfiguration(jsonData: Data(json.utf8))
+
+        #expect(config.upscaler == nil)
+        #expect(config.faceRestoration == nil)
+        #expect(config.refinerModel == nil)
+        #expect(config.clipLText == nil)
+        #expect(config.openClipGText == nil)
+    }
+
+    @Test func nullableFieldsPreserveNonEmptyValues() throws {
+        let json = """
+        {"upscaler": "RealESRGAN", "faceRestoration": "CodeFormer", "refinerModel": "sd_xl_refiner.ckpt", "clipLText": "a photo", "openClipGText": "detailed"}
+        """
+        let config = try DrawThingsConfiguration(jsonData: Data(json.utf8))
+
+        #expect(config.upscaler == "RealESRGAN")
+        #expect(config.faceRestoration == "CodeFormer")
+        #expect(config.refinerModel == "sd_xl_refiner.ckpt")
+        #expect(config.clipLText == "a photo")
+        #expect(config.openClipGText == "detailed")
+    }
+
+    @Test func nullableFieldsMixedRepresentations() throws {
+        let json = """
+        {"upscaler": null, "faceRestoration": "", "refinerModel": "model.ckpt", "clipLText": null, "openClipGText": ""}
+        """
+        let config = try DrawThingsConfiguration(jsonData: Data(json.utf8))
+
+        #expect(config.upscaler == nil)
+        #expect(config.faceRestoration == nil)
+        #expect(config.refinerModel == "model.ckpt")
+        #expect(config.clipLText == nil)
+        #expect(config.openClipGText == nil)
+    }
+
+    // MARK: - Overflow & round-trip
+
     @Test func unknownKeysGoToOverflow() throws {
         let json = """
         {"model": "test.ckpt", "sampler": 0, "steps": 20, "futureField": 42, "anotherNew": "hello"}

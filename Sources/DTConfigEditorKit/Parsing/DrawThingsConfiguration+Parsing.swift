@@ -93,9 +93,9 @@ extension DrawThingsConfiguration {
 
         // MARK: Text encoder controls
         separateClipL = dict.bool("separateClipL")
-        clipLText = dict.string("clipLText")
+        clipLText = dict.nullableString("clipLText")
         separateOpenClipG = dict.bool("separateOpenClipG")
-        openClipGText = dict.string("openClipGText")
+        openClipGText = dict.nullableString("openClipGText")
         separateT5 = dict.bool("separateT5")
         t5TextEncoder = dict.bool("t5TextEncoder")
         zeroNegativePrompt = dict.bool("zeroNegativePrompt")
@@ -117,14 +117,14 @@ extension DrawThingsConfiguration {
         diffusionTileOverlap = dict.int("diffusionTileOverlap", or: 128)
 
         // MARK: Upscaler
-        upscaler = dict.string("upscaler")
+        upscaler = dict.nullableString("upscaler")
         upscalerScaleFactor = dict.int("upscalerScaleFactor")
 
         // MARK: Face restoration
-        faceRestoration = dict.string("faceRestoration")
+        faceRestoration = dict.nullableString("faceRestoration")
 
         // MARK: Refiner
-        refinerModel = dict.string("refinerModel")
+        refinerModel = dict.nullableString("refinerModel")
         refinerStart = dict.double("refinerStart", or: 0.85)
 
         // MARK: Inpainting
@@ -394,6 +394,14 @@ private extension Dictionary where Key == String, Value == Any {
 
     func string(_ key: String) -> String? {
         self[key] as? String
+    }
+
+    /// Returns `nil` for both JSON `null` and `""`.
+    /// Used for the 5 nullable string fields where both representations
+    /// mean "unset" (architecture rule 5).
+    func nullableString(_ key: String) -> String? {
+        guard let s = self[key] as? String, !s.isEmpty else { return nil }
+        return s
     }
 }
 
