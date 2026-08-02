@@ -183,9 +183,9 @@ extension DrawThingsConfiguration {
             loras = []
         }
 
-        // MARK: Controls (kept as JSONValue until roadmap step 6)
-        if let controlsArray = dict["controls"] as? [Any] {
-            controls = try controlsArray.map { try JSONValue.convert($0) }
+        // MARK: Controls
+        if let controlsArray = dict["controls"] as? [[String: Any]] {
+            controls = try controlsArray.map { try ControlConfiguration(foundationDict: $0) }
         } else {
             controls = []
         }
@@ -332,7 +332,7 @@ extension DrawThingsConfiguration {
         dict["loras"] = loras.map { $0.toFoundationDict() }
 
         // Controls
-        dict["controls"] = controls.map { $0.toFoundation() }
+        dict["controls"] = controls.map { $0.toFoundationDict() }
 
         // Overflow — merge in unknown keys
         for (key, value) in overflow {
@@ -366,6 +366,43 @@ extension LoRAConfiguration {
             "file": file,
             "weight": weight,
             "mode": mode,
+        ]
+        for (key, value) in overflow {
+            dict[key] = value.toFoundation()
+        }
+        return dict
+    }
+}
+
+// MARK: - Control parsing
+
+extension ControlConfiguration {
+
+    static let knownKeys: Set<String> = [
+        "file", "weight", "guidanceStart", "guidanceEnd", "controlImportance",
+    ]
+
+    init(foundationDict dict: [String: Any]) throws {
+        file = dict.string("file") ?? ""
+        weight = dict.double("weight", or: 1.0)
+        guidanceStart = dict.double("guidanceStart")
+        guidanceEnd = dict.double("guidanceEnd", or: 1.0)
+        controlImportance = dict.string("controlImportance") ?? "balanced"
+
+        var overflow: [String: JSONValue] = [:]
+        for key in dict.keys where !Self.knownKeys.contains(key) {
+            overflow[key] = try JSONValue.convert(dict[key]!)
+        }
+        self.overflow = overflow
+    }
+
+    func toFoundationDict() -> [String: Any] {
+        var dict: [String: Any] = [
+            "file": file,
+            "weight": weight,
+            "guidanceStart": guidanceStart,
+            "guidanceEnd": guidanceEnd,
+            "controlImportance": controlImportance,
         ]
         for (key, value) in overflow {
             dict[key] = value.toFoundation()

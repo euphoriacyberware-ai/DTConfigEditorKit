@@ -149,7 +149,7 @@ public struct DrawThingsConfiguration: Sendable, Equatable {
     // MARK: - LoRAs and Controls
 
     public var loras: [LoRAConfiguration]
-    public var controls: [JSONValue]
+    public var controls: [ControlConfiguration]
 
     // MARK: - Overflow bucket (architecture rule 4)
 
