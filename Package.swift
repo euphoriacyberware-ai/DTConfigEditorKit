@@ -20,7 +20,8 @@ let package = Package(
         ),
         .testTarget(
             name: "DTConfigEditorKitTests",
-            dependencies: ["DTConfigEditorKit"]
+            dependencies: ["DTConfigEditorKit"],
+            resources: [.copy("Fixtures")]
         ),
     ],
     swiftLanguageModes: [.v6]
