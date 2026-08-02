@@ -37,6 +37,21 @@ struct ContentView: View {
                     }
                 }
             }
+            #if DEBUG
+            .toolbar {
+                ToolbarItem(placement: .secondaryAction) {
+                    Menu {
+                        ForEach(DebugFixtures.all) { fixture in
+                            Button(fixture.label) {
+                                loadFixture(fixture)
+                            }
+                        }
+                    } label: {
+                        Label("Load Fixture", systemImage: "doc.text.magnifyingglass")
+                    }
+                }
+            }
+            #endif
             .alert("Error", isPresented: showingError, actions: {}) {
                 Text(errorMessage ?? "")
             }
@@ -107,6 +122,19 @@ struct ContentView: View {
             errorMessage = "Failed to encode config: \(error.localizedDescription)"
         }
     }
+
+    // MARK: - Debug fixtures
+
+    #if DEBUG
+    private func loadFixture(_ fixture: DebugFixtures.Fixture) {
+        do {
+            config = try DebugFixtures.load(fixture)
+            errorMessage = nil
+        } catch {
+            errorMessage = "Failed to load fixture: \(error.localizedDescription)"
+        }
+    }
+    #endif
 
     // MARK: - Helpers
 
