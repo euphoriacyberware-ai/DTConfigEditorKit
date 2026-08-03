@@ -54,7 +54,7 @@ Legend:
 
 | JSON Key | Swift Type | Optional | JSON Default | Struct Default | Diff | K | M | W | Constraints |
 |----------|-----------|----------|-------------|---------------|------|---|---|---|-------------|
-| `compressionArtifacts` | `CompressionMethod` (string/int) | No | `.disabled` (0) | `.disabled` (0) | -- | Y | -- | Y | CONFIRMED: JSON accepts both string (`"disabled"`, `"h264"`, `"h265"`, `"jpeg"`) and int (0..3) |
+| `compressionArtifacts` | `CompressionMethod` (string/int) | No | `.disabled` (0) | `.disabled` (0) | -- | Y | -- | Y | CONFIRMED: JSON accepts both string (`"disabled"`, `"h264"`, `"h265"`, `"jpeg"`) and int (0..3); `"webp"` in example comment is outdated and not a valid value |
 | `compressionArtifactsQuality` | `Float` | No | `43.1` | `43.1` | -- | Y | -- | Y | |
 
 ### Mask / Inpaint Parameters
@@ -87,12 +87,12 @@ Legend:
 |----------|-----------|----------|-------------|---------------|------|---|---|---|-------------|
 | `cropTop` | `Int32` | No | `0` | `0` | -- | Y | -- | Y | |
 | `cropLeft` | `Int32` | No | `0` | `0` | -- | Y | -- | Y | |
-| `originalImageHeight` | `Int32` | No | `0` | `0` | -- | Y | -- | Y | UNVERIFIED: may need 64-alignment |
-| `originalImageWidth` | `Int32` | No | `0` | `0` | -- | Y | -- | Y | UNVERIFIED: may need 64-alignment |
-| `targetImageHeight` | `Int32` | No | `0` | `0` | -- | Y | -- | Y | UNVERIFIED: may need 64-alignment |
-| `targetImageWidth` | `Int32` | No | `0` | `0` | -- | Y | -- | Y | UNVERIFIED: may need 64-alignment |
-| `negativeOriginalImageHeight` | `Int32` | No | `0` | `0` | -- | Y | -- | Y | UNVERIFIED: may need 64-alignment |
-| `negativeOriginalImageWidth` | `Int32` | No | `0` | `0` | -- | Y | -- | Y | UNVERIFIED: may need 64-alignment |
+| `originalImageHeight` | `Int32` | No | `0` | `0` | -- | Y | -- | Y | CONFIRMED: must be multiple of 64 |
+| `originalImageWidth` | `Int32` | No | `0` | `0` | -- | Y | -- | Y | CONFIRMED: must be multiple of 64 |
+| `targetImageHeight` | `Int32` | No | `0` | `0` | -- | Y | -- | Y | CONFIRMED: must be multiple of 64 |
+| `targetImageWidth` | `Int32` | No | `0` | `0` | -- | Y | -- | Y | CONFIRMED: must be multiple of 64 |
+| `negativeOriginalImageHeight` | `Int32` | No | `0` | `0` | -- | Y | -- | Y | CONFIRMED: must be multiple of 64 |
+| `negativeOriginalImageWidth` | `Int32` | No | `0` | `0` | -- | Y | -- | Y | CONFIRMED: must be multiple of 64 |
 
 ### Upscaler Parameters
 
@@ -123,17 +123,17 @@ Legend:
 | JSON Key | Swift Type | Optional | JSON Default | Struct Default | Diff | K | M | W | Constraints |
 |----------|-----------|----------|-------------|---------------|------|---|---|---|-------------|
 | `tiledDiffusion` | `Bool` | No | `false` | `false` | -- | Y | Y | Y | |
-| `diffusionTileWidth` | `Int32` | No | `1024` | `1024` | -- | Y | -- | Y | UNVERIFIED: may need 64-alignment (FlatBuffer stores in /64 units) |
-| `diffusionTileHeight` | `Int32` | No | `1024` | `1024` | -- | Y | -- | Y | UNVERIFIED: may need 64-alignment |
-| `diffusionTileOverlap` | `Int32` | No | `128` | `128` | -- | Y | -- | Y | UNVERIFIED: stored as /64 in FlatBuffer |
+| `diffusionTileWidth` | `Int32` | No | `1024` | `1024` | -- | Y | -- | Y | CONFIRMED: must be multiple of 64 |
+| `diffusionTileHeight` | `Int32` | No | `1024` | `1024` | -- | Y | -- | Y | CONFIRMED: must be multiple of 64 |
+| `diffusionTileOverlap` | `Int32` | No | `128` | `128` | -- | Y | -- | Y | CONFIRMED: must be multiple of 64 |
 
 ### Tiled Decoding Parameters
 
 | JSON Key | Swift Type | Optional | JSON Default | Struct Default | Diff | K | M | W | Constraints |
 |----------|-----------|----------|-------------|---------------|------|---|---|---|-------------|
 | `tiledDecoding` | `Bool` | No | `false` | `false` | -- | Y | Y | Y | |
-| `decodingTileWidth` | `Int32` | No | `640` | `640` | -- | Y | -- | Y | UNVERIFIED: may need 64-alignment |
-| `decodingTileHeight` | `Int32` | No | `640` | `640` | -- | Y | -- | Y | UNVERIFIED: may need 64-alignment |
+| `decodingTileWidth` | `Int32` | No | `640` | `640` | -- | Y | -- | Y | CONFIRMED: must be multiple of 64 |
+| `decodingTileHeight` | `Int32` | No | `640` | `640` | -- | Y | -- | Y | CONFIRMED: must be multiple of 64 |
 | `decodingTileOverlap` | `Int32` | No | `128` | `128` | -- | Y | -- | Y | |
 
 ### HiRes Fix Parameters
@@ -179,7 +179,7 @@ Legend:
 | `motionScale` | `Int32` | No | `127` | `127` | -- | Y | -- | Y | Inert on image models |
 | `guidingFrameNoise` | `Float` | No | `0.02` | `0.02` | -- | Y | -- | Y | Inert on image models |
 | `startFrameGuidance` | `Float` | No | `1.0` | `1.0` | -- | Y | -- | Y | Inert on image models |
-| `numFrames` | `Int32` | No | `14` | `14` | -- | Y | -- | Y | Inert on image models; UNVERIFIED: Wan may require numFrames % 4 == 1 |
+| `numFrames` | `Int32` | No | `14` | `14` | -- | Y | -- | Y | Inert on image models; no modular constraint |
 
 ### Refiner Parameters
 
@@ -359,20 +359,18 @@ These fields exist on `DrawThingsConfiguration` but are **not parsed** by `Confi
 
 | Struct Field | Type | Init Default | Notes |
 |-------------|------|-------------|-------|
-| `colorCalibration` | `ColorCalibration` | `.disabled` | See anomaly below |
 | `expandPromptToJson` | `Bool` | `false` | |
 | `enableInpainting` | `Bool` | `false` | Internal; adds inpaint control to FlatBuffer |
 | `name` | `String?` | `nil` | Config name, not a generation parameter |
 | `t5Text` | `String?` | `nil` | Separate T5 prompt; not parsed from JSON |
 
-### 4.6 `colorCalibration` Anomaly
+### 4.6 `colorCalibration` in JSON
 
-`colorCalibration` appears in the minimal krea fixture (`DT_krea2_robo_min.json`) as `"none"`, but:
-- `ConfigfromJSON.swift` does **not** parse it
-- The `ColorCalibration` enum has only `.disabled` (0) and `.lab` (1) — no `"none"` case
-- Draw Things exports it, but the client library ignores the JSON value entirely
-
-**Recommendation:** Treat `colorCalibration` as an unknown key. It will trigger the standard "may come from a newer Draw Things version" warning, which is correct behaviour — the client struct has it but the JSON parser doesn't consume it.
+`colorCalibration` appears in the minimal krea fixture (`DT_krea2_robo_min.json`) as `"none"`.
+- `ConfigfromJSON.swift` does **not** parse it, but Draw Things exports it.
+- The `ColorCalibration` enum has `.disabled` (0) and `.lab` (1).
+- `"none"` maps to `.disabled` (0). The JSON parser should accept both `"none"` and `"disabled"` as equivalent, and `"lab"` for `.lab`.
+- Since the JSON parser doesn't consume it today, this field sits in the gap between "struct-only" and "JSON-facing". The validator should accept it as a known key with string-to-enum mapping: `"none"` / `"disabled"` -> 0, `"lab"` -> 1.
 
 ### 4.7 Fixture-Only Key Not in Struct
 
@@ -467,16 +465,8 @@ Video families: `wan21`, `wan22`, `hunyuanVideo`, `ltx2`, `ltx23`.
 
 ## 7. Open Questions
 
-1. **64-alignment for non-core fields.** Only `width`, `height`, `hiresFixWidth`, `hiresFixHeight` have `didSet` enforcement. The FlatBuffer serialization divides tile dimensions by 64 (`diffusionTileWidth / 64`, etc.), strongly suggesting they should be multiples of 64, but there is no `didSet` constraint. Same question applies to `originalImageWidth/Height`, `targetImageWidth/Height`, `negativeOriginalImageWidth/Height`. Build from corpus observation, not assumption.
+1. **Numeric ranges.** No confirmed min/max ranges for `weight`, `guidanceScale`, `shift`, `strength`, `hiresFixStrength`, `refinerStart`, `stochasticSamplingGamma`, etc. The struct has no range clamping. Prefer no rule over a wrong rule.
 
-2. **Wan `numFrames` modular constraint.** The wan22 fixture has `numFrames: 81` which is `81 = 4*20 + 1` (i.e. `numFrames % 4 == 1`). This may be a requirement for Wan video models. Needs more fixtures to confirm.
+2. **Controls fixture.** No fixture exercises `controls[]`. Cannot verify whether Draw Things exports additional fields beyond the 5 in `ControlConfig`, or what values look like in practice.
 
-3. **Numeric ranges.** No confirmed min/max ranges for `weight`, `guidanceScale`, `shift`, `strength`, `hiresFixStrength`, `refinerStart`, `stochasticSamplingGamma`, etc. The struct has no range clamping. Prefer no rule over a wrong rule.
-
-4. **`compressionArtifacts` as string.** The JSON parser example comment shows `"disabled"`, `"jpeg"`, `"webp"`, but the actual mapping function handles `"disabled"`, `"h264"`, `"h265"`, `"jpeg"`. The `"webp"` in the comment may be outdated; the enum has no `webp` case. Trust the code over the comment.
-
-5. **`colorCalibration` JSON format.** The minimal fixture exports it as `"none"` but the enum only has `disabled`/`lab`. If Draw Things starts exporting this reliably, the JSON parser will need to handle the string-to-enum mapping (similar to `compressionArtifacts`). Currently safe to ignore.
-
-6. **Controls fixture.** No fixture exercises `controls[]`. Cannot verify whether Draw Things exports additional fields beyond the 5 in `ControlConfig`, or what values look like in practice.
-
-7. **`causalInferenceEnabled` vs `causalInference`.** The JSON parser reads both, but no fixture contains `causalInferenceEnabled`. The relationship between the boolean flag and the integer value is unclear. Does `causalInference: 0` imply disabled? Or is the boolean truly independent?
+3. **`causalInferenceEnabled` vs `causalInference`.** The JSON parser reads both, but no fixture contains `causalInferenceEnabled`. The relationship between the boolean flag and the integer value is unclear. Does `causalInference: 0` imply disabled? Or is the boolean truly independent?
