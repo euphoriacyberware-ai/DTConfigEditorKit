@@ -40,6 +40,28 @@ public struct ConfigTextView<Model: ConfigTextEditing & Observable>: NSViewRepre
         textView.allowsUndo = true
         textView.delegate = context.coordinator
         textView.string = model.text
+
+        // Set up gutter ruler view.
+        scrollView.hasVerticalRuler = true
+        scrollView.rulersVisible = true
+        let ruler = GutterRulerView(scrollView: scrollView, orientation: .verticalRuler)
+        ruler.clientView = textView
+        ruler.onGutterClick = { [weak coordinator = context.coordinator] line in
+            coordinator?.handleGutterClick(line: line)
+        }
+        scrollView.verticalRulerView = ruler
+        context.coordinator.textView = textView
+        context.coordinator.gutterView = ruler
+
+        // Add tracking area for hover-based diagnostic popovers.
+        let trackingArea = NSTrackingArea(
+            rect: .zero,
+            options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+            owner: context.coordinator,
+            userInfo: nil
+        )
+        textView.addTrackingArea(trackingArea)
+
         return scrollView
     }
 
@@ -52,7 +74,8 @@ public struct ConfigTextView<Model: ConfigTextEditing & Observable>: NSViewRepre
         textView.insertionPointColor = NSColor(theme.foreground)
 
         // Sync text only for external model changes (e.g. set(_:to:)).
-        if textView.string != model.text {
+        if !coordinator.isSyncing && textView.string != model.text {
+            coordinator.isSyncing = true
             let sel = textView.selectedRanges
             textView.string = model.text
             let maxLen = (textView.string as NSString).length
@@ -62,6 +85,7 @@ public struct ConfigTextView<Model: ConfigTextEditing & Observable>: NSViewRepre
                 return NSValue(range: NSRange(location: loc,
                                               length: min(r.length, maxLen - loc)))
             }
+            coordinator.isSyncing = false
         }
 
         coordinator.applyDecorations(
@@ -71,6 +95,13 @@ public struct ConfigTextView<Model: ConfigTextEditing & Observable>: NSViewRepre
             diagnostics: model.diagnostics,
             theme: theme
         )
+
+        // Update gutter.
+        if let ruler = nsView.verticalRulerView as? GutterRulerView {
+            ruler.lineMap = DiagnosticLineMap(text: model.text, diagnostics: model.diagnostics)
+            ruler.theme = theme
+            ruler.needsDisplay = true
+        }
     }
 
     public func makeCoordinator() -> TextViewCoordinator {
@@ -98,6 +129,23 @@ public struct ConfigTextView<Model: ConfigTextEditing & Observable>: UIViewRepre
         textView.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
         textView.delegate = context.coordinator
         textView.text = model.text
+
+        // Set up gutter overlay.
+        let gutter = GutterOverlayView()
+        gutter.autoresizingMask = [.flexibleHeight]
+        textView.addSubview(gutter)
+        context.coordinator.textViewUI = textView
+        context.coordinator.gutterViewUI = gutter
+        updateGutterFrame(textView: textView, gutter: gutter)
+
+        // Long press for diagnostic info.
+        let longPress = UILongPressGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(TextViewCoordinator.handleLongPress(_:))
+        )
+        longPress.minimumPressDuration = 0.5
+        textView.addGestureRecognizer(longPress)
+
         return textView
     }
 
@@ -108,13 +156,15 @@ public struct ConfigTextView<Model: ConfigTextEditing & Observable>: UIViewRepre
         textView.backgroundColor = UIColor(theme.background)
         textView.tintColor = UIColor(theme.foreground)
 
-        if textView.text != model.text {
+        if !coordinator.isSyncing && textView.text != model.text {
+            coordinator.isSyncing = true
             let sel = textView.selectedRange
             textView.text = model.text
             let maxLen = (textView.text as NSString).length
             let loc = min(sel.location, maxLen)
             textView.selectedRange = NSRange(location: loc,
                                              length: min(sel.length, maxLen - loc))
+            coordinator.isSyncing = false
         }
 
         coordinator.applyDecorations(
@@ -124,10 +174,24 @@ public struct ConfigTextView<Model: ConfigTextEditing & Observable>: UIViewRepre
             diagnostics: model.diagnostics,
             theme: theme
         )
+
+        // Update gutter overlay.
+        if let gutter = coordinator.gutterViewUI {
+            gutter.lineMap = DiagnosticLineMap(text: model.text, diagnostics: model.diagnostics)
+            gutter.theme = theme
+            updateGutterFrame(textView: textView, gutter: gutter)
+            gutter.setNeedsDisplay()
+        }
     }
 
     public func makeCoordinator() -> TextViewCoordinator {
         TextViewCoordinator(model: model)
+    }
+
+    private func updateGutterFrame(textView: UITextView, gutter: GutterOverlayView) {
+        let width = gutter.gutterWidth
+        gutter.frame = CGRect(x: 0, y: 0, width: width, height: textView.contentSize.height)
+        textView.textContainerInset = UIEdgeInsets(top: 8, left: width, bottom: 8, right: 8)
     }
 }
 #endif
@@ -137,10 +201,77 @@ public struct ConfigTextView<Model: ConfigTextEditing & Observable>: UIViewRepre
 @MainActor
 public final class TextViewCoordinator: NSObject {
     let model: any ConfigTextEditing
+    var isSyncing = false
+
+    #if os(macOS)
+    weak var textView: NSTextView?
+    weak var gutterView: GutterRulerView?
+    private let popoverController = DiagnosticPopoverController()
+    private var lastHoverDiagnostics: [Diagnostic] = []
+    #else
+    weak var textViewUI: UITextView?
+    weak var gutterViewUI: GutterOverlayView?
+    #endif
 
     init(model: any ConfigTextEditing) {
         self.model = model
         super.init()
+    }
+
+    // MARK: - Public commands
+
+    /// Format the document in place as a single undo operation.
+    public func formatDocument() {
+        let source = model.text
+        let cursorKey = JSONFormatter.keyAtOffset(cursorByteOffset() ?? 0, in: source)
+        let formatted = JSONFormatter.format(source)
+        if formatted != source {
+            replaceAllText(with: formatted)
+            if let key = cursorKey, let offset = JSONFormatter.offsetOfKey(key, in: formatted) {
+                selectByteOffset(offset)
+            }
+        }
+    }
+
+    /// Sort all object keys alphabetically as a single undo operation.
+    public func sortDocumentKeys() {
+        let source = model.text
+        let cursorKey = JSONFormatter.keyAtOffset(cursorByteOffset() ?? 0, in: source)
+        let sorted = JSONFormatter.sortKeys(source)
+        if sorted != source {
+            replaceAllText(with: sorted)
+            if let key = cursorKey, let offset = JSONFormatter.offsetOfKey(key, in: sorted) {
+                selectByteOffset(offset)
+            }
+        }
+    }
+
+    /// Select a byte range in the text view (e.g. from a problems list click).
+    public func selectRange(_ range: Range<Int>) {
+        let table = OffsetTable(model.text)
+        let utf16Range = table.utf16Range(forByteRange: range)
+        let nsRange = NSRange(location: utf16Range.lowerBound, length: utf16Range.count)
+
+        #if os(macOS)
+        if let textView {
+            textView.setSelectedRange(nsRange)
+            textView.scrollRangeToVisible(nsRange)
+        }
+        #else
+        if let textView = textViewUI {
+            textView.selectedRange = nsRange
+            textView.scrollRangeToVisible(nsRange)
+        }
+        #endif
+    }
+
+    // MARK: - Gutter click
+
+    func handleGutterClick(line: Int) {
+        let lineMap = DiagnosticLineMap(text: model.text, diagnostics: model.diagnostics)
+        if let diag = lineMap.selectDiagnostic(forLine: line) {
+            selectRange(diag.range)
+        }
     }
 
     // MARK: - Decoration (cross-platform)
@@ -260,7 +391,7 @@ public final class TextViewCoordinator: NSObject {
 
     // MARK: - Helpers
 
-    private static func textRange(
+    static func textRange(
         for byteRange: Range<Int>,
         offsetTable: OffsetTable,
         contentManager: NSTextContentManager
@@ -280,6 +411,61 @@ public final class TextViewCoordinator: NSObject {
         UIColor(color)
         #endif
     }
+
+    // MARK: - Text replacement helpers
+
+    private func replaceAllText(with newText: String) {
+        isSyncing = true
+        defer { isSyncing = false }
+
+        #if os(macOS)
+        if let textView {
+            let fullRange = NSRange(location: 0, length: (textView.string as NSString).length)
+            textView.shouldChangeText(in: fullRange, replacementString: newText)
+            textView.replaceCharacters(in: fullRange, with: newText)
+            textView.didChangeText()
+            model.text = textView.string
+        } else {
+            model.text = newText
+        }
+        #else
+        if let textView = textViewUI {
+            let fullRange = NSRange(location: 0, length: (textView.text as NSString).length)
+            textView.selectedRange = fullRange
+            textView.replace(textView.selectedTextRange!, withText: newText)
+            model.text = textView.text
+        } else {
+            model.text = newText
+        }
+        #endif
+    }
+
+    private func cursorByteOffset() -> Int? {
+        let utf16Offset: Int?
+        #if os(macOS)
+        utf16Offset = textView?.selectedRange().location
+        #else
+        utf16Offset = textViewUI?.selectedRange.location
+        #endif
+
+        guard let offset = utf16Offset else { return nil }
+        let table = OffsetTable(model.text)
+        return table.byteOffset(forUTF16Offset: offset)
+    }
+
+    private func selectByteOffset(_ byteOffset: Int) {
+        let table = OffsetTable(model.text)
+        let utf16 = table.utf16Offset(forByteOffset: byteOffset)
+        let nsRange = NSRange(location: utf16, length: 0)
+
+        #if os(macOS)
+        textView?.setSelectedRange(nsRange)
+        textView?.scrollRangeToVisible(nsRange)
+        #else
+        textViewUI?.selectedRange = nsRange
+        textViewUI?.scrollRangeToVisible(nsRange)
+        #endif
+    }
 }
 
 // MARK: - Delegate conformance
@@ -287,14 +473,139 @@ public final class TextViewCoordinator: NSObject {
 #if os(macOS)
 extension TextViewCoordinator: NSTextViewDelegate {
     public func textDidChange(_ notification: Notification) {
-        guard let textView = notification.object as? NSTextView else { return }
+        guard !isSyncing, let textView = notification.object as? NSTextView else { return }
         model.text = textView.string
+    }
+}
+
+// MARK: - Mouse tracking for diagnostic popovers
+
+extension TextViewCoordinator {
+    public func mouseMoved(with event: NSEvent) {
+        guard let textView else {
+            popoverController.dismiss()
+            return
+        }
+
+        let point = textView.convert(event.locationInWindow, from: nil)
+        let utf16Offset = textView.characterIndexForInsertion(at: point)
+        guard utf16Offset >= 0, utf16Offset != NSNotFound else {
+            popoverController.dismiss()
+            return
+        }
+
+        let table = OffsetTable(model.text)
+        let byteOffset = table.byteOffset(forUTF16Offset: utf16Offset)
+
+        // Find overlapping diagnostics.
+        let overlapping = model.diagnostics.filter { diag in
+            diag.range.contains(byteOffset) ||
+            (diag.range.isEmpty && diag.range.lowerBound == byteOffset)
+        }
+
+        if overlapping.isEmpty {
+            popoverController.dismiss()
+            lastHoverDiagnostics = []
+        } else if overlapping != lastHoverDiagnostics {
+            lastHoverDiagnostics = overlapping
+            // Position the popover near the character.
+            let glyphRange = NSRange(location: utf16Offset, length: max(1, 0))
+            let textContainerOrigin = textView.textContainerOrigin
+            if let layoutManager = textView.layoutManager {
+                var rect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textView.textContainer!)
+                rect.origin.x += textContainerOrigin.x
+                rect.origin.y += textContainerOrigin.y
+                if rect.width > 0 && rect.height > 0 {
+                    popoverController.show(diagnostics: overlapping, relativeTo: rect, of: textView)
+                }
+            } else {
+                // Fallback: use cursor position.
+                let rect = NSRect(x: point.x, y: point.y, width: 1, height: 14)
+                popoverController.show(diagnostics: overlapping, relativeTo: rect, of: textView)
+            }
+        }
+    }
+
+    public func mouseExited(with event: NSEvent) {
+        popoverController.dismiss()
+        lastHoverDiagnostics = []
     }
 }
 #else
 extension TextViewCoordinator: UITextViewDelegate {
     public func textViewDidChange(_ textView: UITextView) {
+        guard !isSyncing else { return }
         model.text = textView.text
+    }
+}
+
+// MARK: - Long press for diagnostic info (iOS)
+
+extension TextViewCoordinator {
+    @objc func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
+        guard gesture.state == .began,
+              let textView = textViewUI
+        else { return }
+
+        let point = gesture.location(in: textView)
+        let closest = textView.closestPosition(to: point)
+        guard let position = closest else { return }
+        let utf16Offset = textView.offset(from: textView.beginningOfDocument, to: position)
+        guard utf16Offset >= 0 else { return }
+
+        let table = OffsetTable(model.text)
+        let byteOffset = table.byteOffset(forUTF16Offset: utf16Offset)
+
+        let overlapping = model.diagnostics.filter { diag in
+            diag.range.contains(byteOffset) ||
+            (diag.range.isEmpty && diag.range.lowerBound == byteOffset)
+        }
+
+        guard !overlapping.isEmpty else { return }
+
+        // Show a brief tooltip-style label.
+        let message = overlapping.map { diag in
+            let prefix: String
+            switch diag.severity {
+            case .error: prefix = "Error"
+            case .warning: prefix = "Warning"
+            case .inert: prefix = "Unused"
+            }
+            return "\(prefix): \(diag.message)"
+        }.joined(separator: "\n")
+
+        showTooltip(message, at: point, in: textView)
+    }
+
+    private func showTooltip(_ message: String, at point: CGPoint, in view: UIView) {
+        let label = UILabel()
+        label.text = message
+        label.font = .systemFont(ofSize: 12)
+        label.numberOfLines = 0
+        label.backgroundColor = UIColor.systemBackground
+        label.textColor = UIColor.label
+        label.layer.cornerRadius = 6
+        label.layer.masksToBounds = true
+        label.layer.borderColor = UIColor.separator.cgColor
+        label.layer.borderWidth = 0.5
+        label.textAlignment = .left
+
+        let maxWidth = min(300, view.bounds.width - 32)
+        let size = label.sizeThatFits(CGSize(width: maxWidth, height: .greatestFiniteMagnitude))
+        let padding: CGFloat = 8
+        label.frame = CGRect(
+            x: min(point.x, view.bounds.width - size.width - padding * 2),
+            y: point.y - size.height - 8,
+            width: size.width + padding * 2,
+            height: size.height + padding
+        )
+        view.addSubview(label)
+
+        UIView.animate(withDuration: 0.3, delay: 2.0, options: []) {
+            label.alpha = 0
+        } completion: { _ in
+            label.removeFromSuperview()
+        }
     }
 }
 #endif

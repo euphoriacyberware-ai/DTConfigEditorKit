@@ -112,3 +112,29 @@ private func generateLargeDocument() -> String {
         .frame(minWidth: 600, minHeight: 400)
         .preferredColorScheme(.dark)
 }
+
+#Preview("Problems List - Errors & Warnings") {
+    let model = PreviewModel(text: wrongTypeJSON)
+    VStack(spacing: 0) {
+        ConfigTextView(model: model)
+            .frame(minHeight: 200)
+        Divider()
+        ProblemsListView(
+            diagnostics: model.diagnostics,
+            text: model.text,
+            onSelect: { _ in }
+        )
+        .frame(minHeight: 200)
+    }
+    .frame(minWidth: 600, minHeight: 400)
+}
+
+#Preview("Problems List - With Inert") {
+    let model = PreviewModel(text: wanJSON)
+    ProblemsListView(
+        diagnostics: model.diagnostics,
+        text: model.text,
+        onSelect: { _ in }
+    )
+    .frame(minWidth: 400, minHeight: 300)
+}

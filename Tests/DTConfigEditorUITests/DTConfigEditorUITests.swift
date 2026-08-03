@@ -257,3 +257,149 @@ struct SyntaxHighlightingTests {
         }
     }
 }
+
+// MARK: - Reverse Offset Lookup Tests
+
+@Suite("OffsetTable Reverse Lookup")
+struct OffsetTableReverseLookupTests {
+
+    @Test("ASCII round-trip: byte → UTF-16 → byte")
+    func asciiRoundTrip() {
+        let text = "{\"width\": 1024}"
+        let table = OffsetTable(text)
+        for byte in 0...text.utf8.count {
+            let utf16 = table.utf16Offset(forByteOffset: byte)
+            let recovered = table.byteOffset(forUTF16Offset: utf16)
+            #expect(recovered == byte)
+        }
+    }
+
+    @Test("2-byte UTF-8 reverse lookup")
+    func twoByte() {
+        // "aéb" — é is 2 UTF-8 bytes, 1 UTF-16 unit
+        let text = "aéb"
+        let table = OffsetTable(text)
+        #expect(table.byteOffset(forUTF16Offset: 0) == 0) // 'a'
+        #expect(table.byteOffset(forUTF16Offset: 1) == 1) // 'é' starts at byte 1
+        #expect(table.byteOffset(forUTF16Offset: 2) == 3) // 'b' at byte 3
+        #expect(table.byteOffset(forUTF16Offset: 3) == 4) // end
+    }
+
+    @Test("4-byte UTF-8 reverse lookup (surrogate pair)")
+    func fourByte() {
+        let text = "a\u{1F600}b"
+        let table = OffsetTable(text)
+        #expect(table.byteOffset(forUTF16Offset: 0) == 0) // 'a'
+        #expect(table.byteOffset(forUTF16Offset: 1) == 1) // emoji starts at byte 1
+        // UTF-16 offset 2 is the low surrogate — maps to same byte range
+        // offset 3 is 'b' at byte 5
+        #expect(table.byteOffset(forUTF16Offset: 3) == 5)
+        #expect(table.byteOffset(forUTF16Offset: 4) == 6) // end
+    }
+
+    @Test("Out-of-bounds UTF-16 offsets clamp gracefully")
+    func outOfBounds() {
+        let table = OffsetTable("abc")
+        #expect(table.byteOffset(forUTF16Offset: -1) == 0)
+        #expect(table.byteOffset(forUTF16Offset: 0) == 0)
+        #expect(table.byteOffset(forUTF16Offset: 100) == 3) // past end → sentinel
+    }
+
+    @Test("Empty string reverse lookup")
+    func emptyString() {
+        let table = OffsetTable("")
+        #expect(table.byteOffset(forUTF16Offset: 0) == 0)
+    }
+}
+
+// MARK: - DiagnosticLineMap Tests
+
+@Suite("DiagnosticLineMap")
+struct DiagnosticLineMapTests {
+
+    @Test("Single-line diagnostic on line 1")
+    func singleLine() {
+        let text = "{\"a\": 1}"
+        let diag = Diagnostic(range: 1..<4, severity: .error, code: "test", message: "bad")
+        let map = DiagnosticLineMap(text: text, diagnostics: [diag])
+        #expect(map.severity(forLine: 1) == .error)
+        #expect(map.diagnostics(forLine: 1).count == 1)
+    }
+
+    @Test("Multi-line diagnostic spans correct lines")
+    func multiLine() {
+        let text = "{\n  \"a\": 1,\n  \"b\": 2\n}"
+        // Diagnostic spanning from line 2 to line 3 (bytes across both lines)
+        let line2Start = 2   // after "{\n"
+        let line3End = text.utf8.count - 2  // before "\n}"
+        let diag = Diagnostic(range: line2Start..<line3End, severity: .warning, code: "test", message: "span")
+        let map = DiagnosticLineMap(text: text, diagnostics: [diag])
+        #expect(map.severity(forLine: 1) == nil)
+        #expect(map.severity(forLine: 2) == .warning)
+        #expect(map.severity(forLine: 3) == .warning)
+        #expect(map.severity(forLine: 4) == nil)
+    }
+
+    @Test("Worst severity wins: error > warning")
+    func worstSeverity() {
+        let text = "{\"a\": 1}"
+        let warning = Diagnostic(range: 0..<1, severity: .warning, code: "w", message: "warn")
+        let error = Diagnostic(range: 0..<1, severity: .error, code: "e", message: "err")
+        let map = DiagnosticLineMap(text: text, diagnostics: [warning, error])
+        #expect(map.severity(forLine: 1) == .error)
+    }
+
+    @Test("Inert excluded from gutter severity")
+    func inertExcluded() {
+        let text = "{\"a\": 1}"
+        let inert = Diagnostic(range: 0..<1, severity: .inert, code: "i", message: "inert")
+        let map = DiagnosticLineMap(text: text, diagnostics: [inert])
+        #expect(map.severity(forLine: 1) == nil)
+        // But still included in the full list
+        #expect(map.diagnostics(forLine: 1).count == 1)
+    }
+
+    @Test("CRLF line endings")
+    func crlfLines() {
+        let text = "{\r\n  \"a\": 1\r\n}"
+        let diag = Diagnostic(range: 4..<12, severity: .error, code: "test", message: "bad")
+        let map = DiagnosticLineMap(text: text, diagnostics: [diag])
+        #expect(map.severity(forLine: 2) == .error)
+        #expect(map.lineCount == 3)
+    }
+
+    @Test("No trailing newline")
+    func noTrailingNewline() {
+        let text = "{\"a\": 1}"
+        let map = DiagnosticLineMap(text: text, diagnostics: [])
+        #expect(map.lineCount == 1)
+    }
+
+    @Test("Non-ASCII text")
+    func nonASCII() {
+        let text = "{\"naïve\": true}"
+        // "naïve" key spans bytes including the 2-byte ï
+        let diag = Diagnostic(range: 1..<9, severity: .warning, code: "test", message: "x")
+        let map = DiagnosticLineMap(text: text, diagnostics: [diag])
+        #expect(map.severity(forLine: 1) == .warning)
+    }
+
+    @Test("selectDiagnostic prefers error over warning")
+    func selectPreference() {
+        let text = "{\"a\": 1}"
+        let warning = Diagnostic(range: 0..<1, severity: .warning, code: "w", message: "warn")
+        let error = Diagnostic(range: 0..<1, severity: .error, code: "e", message: "err")
+        let map = DiagnosticLineMap(text: text, diagnostics: [warning, error])
+        let selected = map.selectDiagnostic(forLine: 1)
+        #expect(selected?.severity == .error)
+    }
+
+    @Test("Empty diagnostics produce nil severity for all lines")
+    func emptyDiagnostics() {
+        let text = "{\n  \"a\": 1\n}"
+        let map = DiagnosticLineMap(text: text, diagnostics: [])
+        for line in 1...map.lineCount {
+            #expect(map.severity(forLine: line) == nil)
+        }
+    }
+}

@@ -25,6 +25,9 @@ struct ConfigLint: ParsableCommand {
     @Flag(name: .long, help: "Rewrite sibling .expected.json files.")
     var updateExpected: Bool = false
 
+    @Flag(name: .long, help: "Pretty-print files in place.")
+    var formatInPlace: Bool = false
+
     mutating func run() throws {
         let files: [String]
         do {
@@ -37,6 +40,26 @@ struct ConfigLint: ParsableCommand {
         if files.isEmpty {
             printError("No .json files found in the specified paths.")
             throw ExitCode(2)
+        }
+
+        if formatInPlace {
+            for file in files {
+                let source: String
+                do {
+                    source = try String(contentsOfFile: file, encoding: .utf8)
+                } catch {
+                    printError("\(file): \(error.localizedDescription)")
+                    throw ExitCode(2)
+                }
+                let formatted = JSONFormatter.format(source)
+                if formatted == source {
+                    printError("  unchanged: \(file)")
+                } else {
+                    try formatted.write(toFile: file, atomically: true, encoding: .utf8)
+                    printError("  formatted: \(file)")
+                }
+            }
+            return
         }
 
         var allDiagnostics: [(file: String, diagnostics: [Diagnostic])] = []

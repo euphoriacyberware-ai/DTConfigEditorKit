@@ -38,6 +38,30 @@ public struct OffsetTable: Sendable, Equatable {
         utf16Offset(forByteOffset: range.lowerBound)..<utf16Offset(forByteOffset: range.upperBound)
     }
 
+    /// Convert a UTF-16 offset back to a byte offset.
+    ///
+    /// Binary search for the first byte where `byteToUTF16[byte] >= utf16`.
+    /// When a multi-byte scalar maps several byte positions to the same
+    /// UTF-16 offset, this returns the first byte of that scalar.
+    public func byteOffset(forUTF16Offset utf16: Int) -> Int {
+        if utf16 <= 0 { return 0 }
+        let count = byteToUTF16.count
+        if count == 0 { return 0 }
+        if utf16 >= byteToUTF16[count - 1] { return count - 1 }
+        // Binary search: find first index where byteToUTF16[i] >= utf16.
+        var lo = 0
+        var hi = count
+        while lo < hi {
+            let mid = (lo + hi) / 2
+            if byteToUTF16[mid] < utf16 {
+                lo = mid + 1
+            } else {
+                hi = mid
+            }
+        }
+        return lo
+    }
+
     // MARK: - Width helpers
 
     private static func utf8Width(_ scalar: Unicode.Scalar) -> Int {

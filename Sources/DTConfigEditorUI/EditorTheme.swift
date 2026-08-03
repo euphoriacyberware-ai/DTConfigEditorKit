@@ -21,11 +21,17 @@ public struct EditorTheme: Sendable, Equatable {
     public var warningUnderline: Color
     public var inertText: Color
 
+    // Gutter chrome
+    public var gutterBackground: Color
+    public var gutterText: Color
+    public var gutterSeparator: Color
+
     public init(
         key: Color, string: Color, number: Color, bool: Color, null: Color,
         punctuation: Color, errorToken: Color,
         background: Color, foreground: Color,
-        errorUnderline: Color, warningUnderline: Color, inertText: Color
+        errorUnderline: Color, warningUnderline: Color, inertText: Color,
+        gutterBackground: Color, gutterText: Color, gutterSeparator: Color
     ) {
         self.key = key
         self.string = string
@@ -39,6 +45,9 @@ public struct EditorTheme: Sendable, Equatable {
         self.errorUnderline = errorUnderline
         self.warningUnderline = warningUnderline
         self.inertText = inertText
+        self.gutterBackground = gutterBackground
+        self.gutterText = gutterText
+        self.gutterSeparator = gutterSeparator
     }
 
     // MARK: - Presets
@@ -55,7 +64,10 @@ public struct EditorTheme: Sendable, Equatable {
         foreground: .black,
         errorUnderline: .red,
         warningUnderline: .orange,
-        inertText: Color(white: 0.65)
+        inertText: Color(white: 0.65),
+        gutterBackground: Color(red: 0.95, green: 0.95, blue: 0.95),
+        gutterText: Color(white: 0.50),
+        gutterSeparator: Color(white: 0.82)
     )
 
     public static let dark = EditorTheme(
@@ -70,7 +82,10 @@ public struct EditorTheme: Sendable, Equatable {
         foreground: .white,
         errorUnderline: Color(red: 1.0, green: 0.35, blue: 0.35),
         warningUnderline: .orange,
-        inertText: Color(white: 0.45)
+        inertText: Color(white: 0.45),
+        gutterBackground: Color(red: 0.15, green: 0.15, blue: 0.17),
+        gutterText: Color(white: 0.40),
+        gutterSeparator: Color(white: 0.25)
     )
 
     /// Select the preset matching the current appearance.
