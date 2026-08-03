@@ -44,8 +44,12 @@ let package = Package(
             ]
         ),
         .target(
-            name: "DTConfigEditorKit",
+            name: "DTConfigEditorUI",
             dependencies: ["DTConfigCore"]
+        ),
+        .target(
+            name: "DTConfigEditorKit",
+            dependencies: ["DTConfigCore", "DTConfigEditorUI"]
         ),
         .testTarget(
             name: "DTConfigCoreTests",
@@ -62,6 +66,10 @@ let package = Package(
                 "DTConfigCore",
                 .product(name: "DrawThingsClient", package: "DTClient"),
             ]
+        ),
+        .testTarget(
+            name: "DTConfigEditorUITests",
+            dependencies: ["DTConfigEditorUI", "DTConfigCore"]
         ),
         .testTarget(
             name: "DTConfigEditorKitTests",

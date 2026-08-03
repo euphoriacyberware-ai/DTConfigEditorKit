@@ -4,7 +4,7 @@ import Observation
 
 @Observable
 @MainActor
-public final class ConfigEditorModel {
+public final class ConfigEditorModel: ConfigTextEditing {
     public var text: String {
         didSet { textDidChange() }
     }
@@ -13,6 +13,8 @@ public final class ConfigEditorModel {
     public private(set) var unknownKeys: [(String, JSONValue)] = []
 
     public var isValid: Bool { configuration != nil }
+
+    public var currentParseResult: ParseResult? { parseResult }
 
     private var parseResult: ParseResult?
     private var validationTask: Task<Void, Never>?
