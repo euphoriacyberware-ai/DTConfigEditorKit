@@ -6,20 +6,37 @@ import PackageDescription
 let package = Package(
     name: "DTConfigEditorKit",
     products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
             name: "DTConfigEditorKit",
             targets: ["DTConfigEditorKit"]
         ),
+        .executable(
+            name: "configlint",
+            targets: ["configlint"]
+        ),
+    ],
+    dependencies: [
+        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.5.0"),
     ],
     targets: [
         .target(name: "DTConfigCore"),
+        .executableTarget(
+            name: "configlint",
+            dependencies: [
+                "DTConfigCore",
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+            ]
+        ),
         .target(
             name: "DTConfigEditorKit",
             dependencies: ["DTConfigCore"]
         ),
         .testTarget(
             name: "DTConfigCoreTests",
+            dependencies: ["DTConfigCore"]
+        ),
+        .testTarget(
+            name: "ConfigLintTests",
             dependencies: ["DTConfigCore"]
         ),
         .testTarget(
