@@ -15,7 +15,7 @@ Legend:
 - **JSON default**: value used by `ConfigfromJSON.swift` when key is absent (`??` value)
 - **Struct default**: value in `DrawThingsConfiguration.init` parameter default
 - **Diff**: marked when JSON parser default differs from struct init default
-- **Fixture presence**: K=krea-full, M=krea-min, W=wan22
+- **Fixture presence**: K=krea-full, M=krea-min, W=wan22, C=control-example
 
 ### Core Parameters
 
@@ -26,10 +26,10 @@ Legend:
 | `height` | `Int32` | No | `1024` | `512` | YES | Y | Y | Y | CONFIRMED: `didSet` enforces multiple of 64 |
 | `steps` | `Int32` | No | `20` | `20` | -- | Y | Y | Y | |
 | `sampler` | `SamplerType` (Int8 enum) | No | `.dpmpp2mkarras` (0) | `.dpmpp2mkarras` (0) | -- | Y | Y | Y | CONFIRMED: int 0..19, maps to SamplerType enum |
-| `guidanceScale` | `Float` | No | `7.0` | `7.0` | -- | Y | Y | Y | |
+| `guidanceScale` | `Float` | No | `7.0` | `7.0` | -- | Y | Y | Y | CONFIRMED: range 0 to 50.0 |
 | `seed` | `Int64?` | Yes | `nil` | `nil` | -- | Y | Y | Y | CONFIRMED: `-1` means random; `nil` means random; JSON parser treats absent as nil |
 | `clipSkip` | `Int32` | No | `1` | `1` | -- | Y | -- | Y | |
-| `shift` | `Float` | No | `1.0` | `1.0` | -- | Y | Y | Y | |
+| `shift` | `Float` | No | `1.0` | `1.0` | -- | Y | Y | Y | UI range 0.10..8.00; JSON accepts higher values with unknown upper limit |
 | `strength` | `Float` | No | `1.0` | `1.0` | -- | Y | Y | Y | |
 
 ### Batch Parameters
@@ -217,22 +217,30 @@ Legend:
 | JSON Key | Swift Type | Optional | Default | Constraints |
 |----------|-----------|----------|---------|-------------|
 | `file` | `String` | No | *(required)* | Must be non-empty; entry skipped if absent/empty |
-| `weight` | `Float` | No | `1.0` | |
+| `weight` | `Float` | No | `1.0` | CONFIRMED: range -1.5 to 2.5 |
 | `mode` | `LoRAMode` (string or int) | No | `.all` (0) | CONFIRMED: accepts string (`"all"`, `"base"`, `"refiner"`) or int (0..2) |
 
 ### `controls[]` (ControlConfig)
 
-| JSON Key | Swift Type | Optional | Default | Constraints |
-|----------|-----------|----------|---------|-------------|
-| `file` | `String` | No | *(required)* | Must be non-empty; entry skipped if absent/empty |
-| `weight` | `Float` | No | `1.0` | |
-| `guidanceStart` | `Float` | No | `0.0` | |
-| `guidanceEnd` | `Float` | No | `1.0` | |
-| `controlImportance` | `ControlMode` (string or int) | No | `.balanced` (0) | CONFIRMED: JSON key is `controlImportance`, maps to `controlMode` in struct; accepts string (`"balanced"`, `"prompt"`, `"control"`) or int (0..2) |
+The client struct (`ControlConfig`) exposes 5 fields, but Draw Things exports **10 fields** per control entry. The additional 5 come from the FlatBuffer `Control` type.
 
-> **Note:** The FlatBuffer `Control` type has additional fields (`noPrompt`, `globalAveragePooling`,
-> `downSamplingRate`, `targetBlocks`, `inputOverride`) that are not exposed in `ControlConfig` or the
-> JSON format. The client sets these internally (e.g. for inpainting). They are not user-facing JSON fields.
+| JSON Key | Swift Type | Optional | Default | In ControlConfig | Constraints |
+|----------|-----------|----------|---------|-----------------|-------------|
+| `file` | `String` | No | *(required)* | Yes | Must be non-empty; entry skipped if absent/empty |
+| `weight` | `Float` | No | `1.0` | Yes | |
+| `guidanceStart` | `Float` | No | `0.0` | Yes | |
+| `guidanceEnd` | `Float` | No | `1.0` | Yes | |
+| `controlImportance` | `ControlMode` (string or int) | No | `.balanced` (0) | Yes | JSON key is `controlImportance`, maps to `controlMode` in struct; accepts string (`"balanced"`, `"prompt"`, `"control"`) or int (0..2) |
+| `noPrompt` | `Bool` | No | `false` | No | FlatBuffer field; exported by Draw Things |
+| `globalAveragePooling` | `Bool` | No | `true` | No | FlatBuffer default is `true`; fixture value is `false` |
+| `downSamplingRate` | `Float` | No | `1.0` | No | FlatBuffer field |
+| `targetBlocks` | `[String]` | No | `[]` | No | FlatBuffer field; empty array in fixture |
+| `inputOverride` | `String` (enum) | No | `""` | No | FlatBuffer enum `ControlInputType`; `""` = `.unspecified`; exported as string by Draw Things |
+
+> **Note:** `ConfigfromJSON.swift` only parses the first 5 fields. The additional 5 are set
+> programmatically by the client (e.g. `inputOverride = .inpaint` for mask-based inpainting).
+> Draw Things exports all 10, so the editor should preserve them as unknown-but-valid keys
+> within control entries rather than warning about them.
 
 ---
 
@@ -394,25 +402,33 @@ When a key is absent from JSON, `ConfigfromJSON.swift` fills in its default. In 
 
 ---
 
-## 5. `controls[]` Gap Analysis
+## 5. `controls[]` Analysis
 
-### What we know
+### Confirmed by `DT_Control_Example.json` fixture
 
-From `ControlConfig` struct and `ConfigfromJSON.swift`:
-- 5 JSON-facing fields: `file`, `weight`, `guidanceStart`, `guidanceEnd`, `controlImportance`
-- `controlImportance` uses a string-to-enum mapping (same pattern as `loras[].mode`)
+Draw Things exports **all 10 FlatBuffer fields** per control entry, not just the 5 that `ControlConfig` / `ConfigfromJSON.swift` parse. The fixture contains one PuLID control entry:
 
-From the FlatBuffer `Control` type (10 fields total):
-- 5 additional internal fields: `noPrompt`, `globalAveragePooling`, `downSamplingRate`, `targetBlocks`, `inputOverride`
-- These are set programmatically (e.g. `inputOverride = .inpaint` for inpainting) and do not appear in JSON
+```json
+{
+  "controlImportance": "balanced",
+  "downSamplingRate": 1,
+  "file": "pulid_0.9.1_eva02_clip_l14_336_f16.ckpt",
+  "globalAveragePooling": false,
+  "guidanceEnd": 0.9,
+  "guidanceStart": 0.05,
+  "inputOverride": "",
+  "noPrompt": false,
+  "targetBlocks": [],
+  "weight": 1
+}
+```
 
-### What's blocked
+### Key observations
 
-- **No fixture with a non-empty `controls` array.** All three fixtures have `"controls": []`.
-- Cannot verify whether Draw Things exports additional control fields beyond the 5 known ones.
-- Cannot verify actual field values in real exports.
-
-**Priority:** Add a fixture with at least one ControlNet entry. This is the only nested type that remains completely unexercised.
+- `inputOverride` is exported as an empty string (`""`), mapping to `.unspecified` (0). Non-empty values would be ControlInputType enum names (e.g. `"inpaint"`, `"depth"`, `"canny"`).
+- `globalAveragePooling` defaults to `true` in the FlatBuffer schema but is `false` in this fixture — the value is model-specific.
+- `targetBlocks` is an array of strings (empty here). Used for targeted ControlNet block selection.
+- The 5 extra fields (`noPrompt`, `globalAveragePooling`, `downSamplingRate`, `targetBlocks`, `inputOverride`) are not parsed by `ConfigfromJSON.swift` but should be preserved by the editor as valid keys within control entries.
 
 ---
 
@@ -465,8 +481,6 @@ Video families: `wan21`, `wan22`, `hunyuanVideo`, `ltx2`, `ltx23`.
 
 ## 7. Open Questions
 
-1. **Numeric ranges.** No confirmed min/max ranges for `weight`, `guidanceScale`, `shift`, `strength`, `hiresFixStrength`, `refinerStart`, `stochasticSamplingGamma`, etc. The struct has no range clamping. Prefer no rule over a wrong rule.
+1. **Numeric ranges.** Some ranges confirmed: LoRA `weight` (-1.5..2.5), `guidanceScale` (0..50.0), `shift` (UI 0.10..8.00, JSON accepts higher). Still no confirmed ranges for `strength`, `hiresFixStrength`, `refinerStart`, `stochasticSamplingGamma`, control `weight`, `guidanceEmbed`, etc. The struct has no range clamping. Prefer no rule over a wrong rule.
 
-2. **Controls fixture.** No fixture exercises `controls[]`. Cannot verify whether Draw Things exports additional fields beyond the 5 in `ControlConfig`, or what values look like in practice.
-
-3. **`causalInferenceEnabled` vs `causalInference`.** The JSON parser reads both, but no fixture contains `causalInferenceEnabled`. The relationship between the boolean flag and the integer value is unclear. Does `causalInference: 0` imply disabled? Or is the boolean truly independent?
+2. **`causalInferenceEnabled` vs `causalInference`.** The JSON parser reads both, but no fixture contains `causalInferenceEnabled`. The relationship between the boolean flag and the integer value is unclear. Does `causalInference: 0` imply disabled? Or is the boolean truly independent?
