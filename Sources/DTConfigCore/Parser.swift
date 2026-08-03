@@ -17,6 +17,10 @@ public struct ParseResult: Sendable {
         extractValue(from: root)
     }
 
+    public func value(for node: CSTNode) -> JSONValue? {
+        extractValue(from: node)
+    }
+
     private func extractValue(from node: CSTNode) -> JSONValue? {
         switch node.kind {
         case .document:

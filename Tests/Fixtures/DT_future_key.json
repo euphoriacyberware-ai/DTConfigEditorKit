@@ -1,0 +1,12 @@
+{
+  "model": "test_model.ckpt",
+  "width": 1024,
+  "height": 1024,
+  "steps": 20,
+  "sampler": 0,
+  "guidanceScale": 7,
+  "strength": 1,
+  "futureFeatureFlag": true,
+  "loras": [],
+  "controls": []
+}

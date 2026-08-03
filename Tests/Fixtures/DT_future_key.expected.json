@@ -1,0 +1,14 @@
+[
+  {
+    "code" : "unknown-key",
+    "fixIts" : [
+
+    ],
+    "message" : "Unknown key \"futureFeatureFlag\"; may be from a newer Draw Things version",
+    "range" : [
+      139,
+      158
+    ],
+    "severity" : "warning"
+  }
+]
