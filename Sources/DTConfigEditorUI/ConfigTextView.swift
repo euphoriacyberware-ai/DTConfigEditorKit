@@ -331,17 +331,88 @@ public final class TextViewCoordinator: NSObject {
         diagnostics: [Diagnostic],
         theme: EditorTheme
     ) {
-        guard let layoutManager = textView.textLayoutManager,
-              let contentManager = layoutManager.textContentManager
-        else { return }
-        applyDecorations(
-            layoutManager: layoutManager,
-            contentManager: contentManager,
-            text: text,
-            parseResult: parseResult,
-            diagnostics: diagnostics,
-            theme: theme
-        )
+        if let tk2Layout = textView.textLayoutManager,
+           let contentManager = tk2Layout.textContentManager {
+            // TextKit 2 path
+            applyDecorations(
+                layoutManager: tk2Layout,
+                contentManager: contentManager,
+                text: text,
+                parseResult: parseResult,
+                diagnostics: diagnostics,
+                theme: theme
+            )
+        } else if let tk1Layout = textView.layoutManager {
+            // TextKit 1 fallback — use temporary attributes (non-destructive,
+            // like rendering attributes but for NSLayoutManager).
+            applyDecorationsTK1(
+                layoutManager: tk1Layout,
+                text: text,
+                parseResult: parseResult,
+                diagnostics: diagnostics,
+                theme: theme
+            )
+        }
+    }
+
+    private func applyDecorationsTK1(
+        layoutManager: NSLayoutManager,
+        text: String,
+        parseResult: ParseResult?,
+        diagnostics: [Diagnostic],
+        theme: EditorTheme
+    ) {
+        let offsetTable = OffsetTable(text)
+        let fullRange = NSRange(location: 0, length: (text as NSString).length)
+
+        // Clear previous temporary attributes.
+        layoutManager.removeTemporaryAttribute(.foregroundColor, forCharacterRange: fullRange)
+        layoutManager.removeTemporaryAttribute(.underlineStyle, forCharacterRange: fullRange)
+        layoutManager.removeTemporaryAttribute(.underlineColor, forCharacterRange: fullRange)
+
+        // Base foreground for all text.
+        layoutManager.addTemporaryAttribute(
+            .foregroundColor, value: NSColor(theme.foreground), forCharacterRange: fullRange)
+
+        // Syntax highlighting from the parse tree.
+        let spans = parseResult?.syntaxSpans() ?? []
+        for span in spans {
+            let utf16 = offsetTable.utf16Range(forByteRange: span.byteRange)
+            let nsRange = NSRange(location: utf16.lowerBound, length: utf16.count)
+            guard nsRange.location + nsRange.length <= fullRange.length else { continue }
+            layoutManager.addTemporaryAttribute(
+                .foregroundColor, value: NSColor(theme.color(for: span.role)),
+                forCharacterRange: nsRange)
+        }
+
+        // Diagnostic decoration.
+        for diagnostic in diagnostics {
+            guard !diagnostic.range.isEmpty else { continue }
+            let utf16 = offsetTable.utf16Range(forByteRange: diagnostic.range)
+            let nsRange = NSRange(location: utf16.lowerBound, length: utf16.count)
+            guard nsRange.location + nsRange.length <= fullRange.length else { continue }
+
+            switch diagnostic.severity {
+            case .error:
+                layoutManager.addTemporaryAttribute(
+                    .underlineStyle, value: NSUnderlineStyle.thick.rawValue,
+                    forCharacterRange: nsRange)
+                layoutManager.addTemporaryAttribute(
+                    .underlineColor, value: NSColor(theme.errorUnderline),
+                    forCharacterRange: nsRange)
+            case .warning:
+                layoutManager.addTemporaryAttribute(
+                    .underlineStyle, value: NSUnderlineStyle.single.rawValue,
+                    forCharacterRange: nsRange)
+                layoutManager.addTemporaryAttribute(
+                    .underlineColor, value: NSColor(theme.warningUnderline),
+                    forCharacterRange: nsRange)
+            case .inert:
+                layoutManager.addTemporaryAttribute(
+                    .foregroundColor, value: NSColor(theme.inertText),
+                    forCharacterRange: nsRange)
+            }
+        }
     }
     #else
     func applyDecorations(
