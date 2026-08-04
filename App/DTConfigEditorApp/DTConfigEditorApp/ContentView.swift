@@ -65,11 +65,11 @@ struct ContentView: View {
     @ViewBuilder
     private var editorArea: some View {
         #if os(macOS)
-        HSplitView {
+        HStack(spacing: 0) {
             ConfigTextView(model: appState.model)
-                .frame(minWidth: 300)
 
             if appState.showProblemsList {
+                Divider()
                 ProblemsListView(
                     diagnostics: appState.filteredDiagnostics,
                     text: appState.model.text,
@@ -78,7 +78,7 @@ struct ContentView: View {
                         appState.model.text = FixItApplicator.apply(fixIt, to: appState.model.text)
                     }
                 )
-                .frame(minWidth: 250, idealWidth: 320)
+                .frame(width: 320)
             }
         }
         #else

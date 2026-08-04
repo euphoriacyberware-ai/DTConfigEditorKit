@@ -27,7 +27,7 @@ public struct ConfigTextView<Model: ConfigTextEditing & Observable>: NSViewRepre
         self.model = model
     }
 
-    public func makeNSView(context: Context) -> NSScrollView {
+    public func makeNSView(context: Context) -> NSView {
         let scrollView = NSTextView.scrollableTextView()
         let textView = scrollView.documentView as! NSTextView
         textView.isEditable = true
@@ -41,17 +41,7 @@ public struct ConfigTextView<Model: ConfigTextEditing & Observable>: NSViewRepre
         textView.delegate = context.coordinator
         textView.string = model.text
 
-        // Set up gutter ruler view.
-        scrollView.hasVerticalRuler = true
-        scrollView.rulersVisible = true
-        let ruler = GutterRulerView(scrollView: scrollView, orientation: .verticalRuler)
-        ruler.clientView = textView
-        ruler.onGutterClick = { [weak coordinator = context.coordinator] line in
-            coordinator?.handleGutterClick(line: line)
-        }
-        scrollView.verticalRulerView = ruler
         context.coordinator.textView = textView
-        context.coordinator.gutterView = ruler
 
         // Add tracking area for hover-based diagnostic popovers.
         let trackingArea = NSTrackingArea(
@@ -62,11 +52,54 @@ public struct ConfigTextView<Model: ConfigTextEditing & Observable>: NSViewRepre
         )
         textView.addTrackingArea(trackingArea)
 
-        return scrollView
+        // Build gutter as a plain NSView beside the scroll view (not NSRulerView,
+        // which causes invisible text on macOS 26).
+        let gutter = GutterSideView()
+        gutter.textView = textView
+        gutter.onGutterClick = { [weak coordinator = context.coordinator] line in
+            coordinator?.handleGutterClick(line: line)
+        }
+
+        let container = NSView()
+        container.wantsLayer = true
+        container.layer?.masksToBounds = true
+        container.addSubview(gutter)
+        container.addSubview(scrollView)
+
+        // Layout via Auto Layout constraints.
+        gutter.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        let gutterWidth: CGFloat = gutter.gutterWidth
+        NSLayoutConstraint.activate([
+            gutter.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            gutter.topAnchor.constraint(equalTo: container.topAnchor),
+            gutter.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            gutter.widthAnchor.constraint(equalToConstant: gutterWidth),
+
+            scrollView.leadingAnchor.constraint(equalTo: gutter.trailingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            scrollView.topAnchor.constraint(equalTo: container.topAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+        ])
+
+        // Observe scroll changes to redraw the gutter.
+        let clipView = scrollView.contentView
+        clipView.postsBoundsChangedNotifications = true
+        NotificationCenter.default.addObserver(
+            gutter, selector: #selector(GutterSideView.scrollViewDidScroll(_:)),
+            name: NSView.boundsDidChangeNotification, object: clipView)
+
+        context.coordinator.gutterSideView = gutter
+
+        return container
     }
 
-    public func updateNSView(_ nsView: NSScrollView, context: Context) {
-        guard let textView = nsView.documentView as? NSTextView else { return }
+    public func updateNSView(_ nsView: NSView, context: Context) {
+        // Find the scroll view (first NSScrollView subview of the container).
+        guard let scrollView = nsView.subviews.first(where: { $0 is NSScrollView }) as? NSScrollView,
+              let textView = scrollView.documentView as? NSTextView
+        else { return }
+
         let coordinator = context.coordinator
         let theme = EditorTheme.resolved(for: colorScheme)
 
@@ -98,10 +131,10 @@ public struct ConfigTextView<Model: ConfigTextEditing & Observable>: NSViewRepre
         )
 
         // Update gutter.
-        if let ruler = nsView.verticalRulerView as? GutterRulerView {
-            ruler.lineMap = DiagnosticLineMap(text: model.text, diagnostics: model.diagnostics)
-            ruler.theme = theme
-            ruler.needsDisplay = true
+        if let gutter = nsView.subviews.first(where: { $0 is GutterSideView }) as? GutterSideView {
+            gutter.lineMap = DiagnosticLineMap(text: model.text, diagnostics: model.diagnostics)
+            gutter.theme = theme
+            gutter.needsDisplay = true
         }
     }
 
@@ -208,6 +241,7 @@ public final class TextViewCoordinator: NSObject {
     #if os(macOS)
     weak var textView: NSTextView?
     weak var gutterView: GutterRulerView?
+    weak var gutterSideView: GutterSideView?
     private let popoverController = DiagnosticPopoverController()
     private let completionController = CompletionPopupController()
     private var lastHoverDiagnostics: [Diagnostic] = []
@@ -342,12 +376,18 @@ public final class TextViewCoordinator: NSObject {
         let offsetTable = OffsetTable(text)
         let docRange = contentManager.documentRange
 
-        // Clear previous rendering attributes.
-        layoutManager.removeRenderingAttribute(.foregroundColor, for: docRange)
+        // Reset rendering attributes: set base foreground for all text, clear underlines.
+        // Using addRenderingAttribute with the base color instead of removeRenderingAttribute
+        // because on macOS 26 (TextKit 2), removing foreground color leaves text invisible.
+        layoutManager.addRenderingAttribute(
+            .foregroundColor,
+            value: Self.platformColor(theme.foreground),
+            for: docRange
+        )
         layoutManager.removeRenderingAttribute(.underlineStyle, for: docRange)
         layoutManager.removeRenderingAttribute(.underlineColor, for: docRange)
 
-        // Syntax highlighting from the parse tree.
+        // Syntax highlighting from the parse tree (overrides the base foreground).
         let spans = parseResult?.syntaxSpans() ?? []
         for span in spans {
             guard let textRange = Self.textRange(
