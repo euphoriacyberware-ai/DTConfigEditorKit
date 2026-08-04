@@ -33,6 +33,8 @@ final class AppState {
     var model: ConfigEditorModel
     var documentURL: URL?
     var originalText: String
+    /// Keys present in the document when it was loaded/pasted, used by .preserveShape.
+    var loadedKeys: Set<String> = []
 
     var isDirty: Bool { model.text != originalText }
 
@@ -96,6 +98,7 @@ final class AppState {
     func loadText(_ text: String, url: URL? = nil) {
         model.text = text
         originalText = text
+        loadedKeys = keysIn(text)
         documentURL = url
         #if os(macOS)
         if let url { NSDocumentController.shared.noteNewRecentDocumentURL(url) }
@@ -120,7 +123,15 @@ final class AppState {
         let empty = "{\n  \n}"
         model.text = empty
         originalText = empty
+        loadedKeys = []
         documentURL = nil
+    }
+
+    private func keysIn(_ text: String) -> Set<String> {
+        let result = Parser.parse(text)
+        guard let json = result.value ?? result.valueRecovered,
+              case .object(let pairs) = json else { return [] }
+        return Set(pairs.map(\.key))
     }
 
     // MARK: - Clipboard
@@ -162,6 +173,12 @@ final class AppState {
             emissionStyleChoice = choice
             return
         }
+        // Capture the current key set before re-emission if not already captured.
+        // This preserves the original document shape even if the user pasted via
+        // Cmd+V (bypassing loadText) or if a prior style switch reduced the keys.
+        if loadedKeys.isEmpty {
+            loadedKeys = currentKeys()
+        }
         let style = emitStyle(for: choice)
         let newText = ConfigurationInterop.text(from: config, style: style, unknownKeys: model.unknownKeys)
         emissionStyleChoice = choice
@@ -173,7 +190,13 @@ final class AppState {
         switch choice {
         case .full: return .full
         case .nonDefaultOnly: return .nonDefaultOnly
-        case .preserveShape: return .preserveShape(keys: currentKeys())
+        case .preserveShape:
+            // If loadedKeys wasn't set (e.g. user pasted via Cmd+V into the text
+            // view rather than the toolbar button), capture from the current document.
+            if loadedKeys.isEmpty {
+                loadedKeys = currentKeys()
+            }
+            return .preserveShape(keys: loadedKeys)
         }
     }
 
