@@ -207,6 +207,7 @@ public final class TextViewCoordinator: NSObject {
     weak var textView: NSTextView?
     weak var gutterView: GutterRulerView?
     private let popoverController = DiagnosticPopoverController()
+    private let completionController = CompletionPopupController()
     private var lastHoverDiagnostics: [Diagnostic] = []
     #else
     weak var textViewUI: UITextView?
@@ -216,6 +217,11 @@ public final class TextViewCoordinator: NSObject {
     init(model: any ConfigTextEditing) {
         self.model = model
         super.init()
+        #if os(macOS)
+        popoverController.onApplyFixIt = { [weak self] fixIt in
+            self?.applyFixIt(fixIt)
+        }
+        #endif
     }
 
     // MARK: - Public commands
@@ -244,6 +250,11 @@ public final class TextViewCoordinator: NSObject {
                 selectByteOffset(offset)
             }
         }
+    }
+
+    /// Apply a fix-it as a single undo operation.
+    public func applyFixIt(_ fixIt: FixIt) {
+        replaceByteRange(fixIt.range, with: fixIt.replacement)
     }
 
     /// Select a byte range in the text view (e.g. from a problems list click).
@@ -440,6 +451,40 @@ public final class TextViewCoordinator: NSObject {
         #endif
     }
 
+    private func replaceByteRange(_ byteRange: Range<Int>, with replacement: String) {
+        let table = OffsetTable(model.text)
+        let utf16Range = table.utf16Range(forByteRange: byteRange)
+        let nsRange = NSRange(location: utf16Range.lowerBound, length: utf16Range.count)
+
+        isSyncing = true
+        defer { isSyncing = false }
+
+        #if os(macOS)
+        if let textView {
+            textView.shouldChangeText(in: nsRange, replacementString: replacement)
+            textView.replaceCharacters(in: nsRange, with: replacement)
+            textView.didChangeText()
+            model.text = textView.string
+        } else {
+            model.text = FixItApplicator.apply(
+                FixIt(range: byteRange, replacement: replacement, label: ""),
+                to: model.text)
+        }
+        #else
+        if let textView = textViewUI {
+            textView.selectedRange = nsRange
+            if let selectedRange = textView.selectedTextRange {
+                textView.replace(selectedRange, withText: replacement)
+            }
+            model.text = textView.text
+        } else {
+            model.text = FixItApplicator.apply(
+                FixIt(range: byteRange, replacement: replacement, label: ""),
+                to: model.text)
+        }
+        #endif
+    }
+
     private func cursorByteOffset() -> Int? {
         let utf16Offset: Int?
         #if os(macOS)
@@ -475,6 +520,69 @@ extension TextViewCoordinator: NSTextViewDelegate {
     public func textDidChange(_ notification: Notification) {
         guard !isSyncing, let textView = notification.object as? NSTextView else { return }
         model.text = textView.string
+        updateCompletion(in: textView)
+    }
+
+    public func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        if completionController.isShowing {
+            if commandSelector == #selector(NSResponder.moveUp(_:)) {
+                completionController.moveUp()
+                return true
+            }
+            if commandSelector == #selector(NSResponder.moveDown(_:)) {
+                completionController.moveDown()
+                return true
+            }
+            if commandSelector == #selector(NSResponder.insertNewline(_:))
+                || commandSelector == #selector(NSResponder.insertTab(_:))
+            {
+                completionController.acceptCurrent()
+                return true
+            }
+            if commandSelector == #selector(NSResponder.cancelOperation(_:)) {
+                completionController.dismiss()
+                return true
+            }
+        }
+        return false
+    }
+
+    private func updateCompletion(in textView: NSTextView) {
+        guard let parseResult = model.currentParseResult,
+              let byteOffset = cursorByteOffset()
+        else {
+            completionController.dismiss()
+            return
+        }
+
+        let result = CompletionEngine.completions(in: parseResult, at: byteOffset)
+        if result.items.isEmpty {
+            completionController.dismiss()
+            return
+        }
+
+        // Position near the cursor.
+        let utf16 = textView.selectedRange().location
+        let glyphRange = NSRange(location: utf16, length: 0)
+        let origin = textView.textContainerOrigin
+        var rect: NSRect
+        if let layoutManager = textView.layoutManager {
+            rect = layoutManager.boundingRect(
+                forGlyphRange: glyphRange, in: textView.textContainer!)
+            rect.origin.x += origin.x
+            rect.origin.y += origin.y
+        } else {
+            let insertionRect = textView.firstRect(forCharacterRange: glyphRange, actualRange: nil)
+            rect = textView.convert(insertionRect, from: nil)
+        }
+        rect.size.width = max(rect.size.width, 1)
+        rect.size.height = max(rect.size.height, 14)
+
+        completionController.show(
+            result: result, near: rect, in: textView
+        ) { [weak self] item, range in
+            self?.replaceByteRange(range, with: item.text)
+        }
     }
 }
 

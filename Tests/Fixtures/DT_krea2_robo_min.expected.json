@@ -1,13 +1,58 @@
 [
   {
+    "code" : "style.prefer-null",
+    "fixIts" : [
+      {
+        "label" : "Replace \"\" with null",
+        "range" : [
+          52,
+          54
+        ],
+        "replacement" : "null"
+      }
+    ],
+    "message" : "\"refinerModel\" is \"\"; use null instead",
+    "range" : [
+      52,
+      54
+    ],
+    "severity" : "warning"
+  },
+  {
     "code" : "value.upscaler-empty-string",
     "fixIts" : [
-
+      {
+        "label" : "Replace \"\" with null",
+        "range" : [
+          500,
+          502
+        ],
+        "replacement" : "null"
+      }
     ],
     "message" : "Empty-string upscaler may trigger default 4x upscaler; use null instead",
     "range" : [
       500,
       502
+    ],
+    "severity" : "warning"
+  },
+  {
+    "code" : "style.prefer-null",
+    "fixIts" : [
+      {
+        "label" : "Replace \"\" with null",
+        "range" : [
+          651,
+          653
+        ],
+        "replacement" : "null"
+      }
+    ],
+    "message" : "\"faceRestoration\" is \"\"; use null instead",
+    "range" : [
+      651,
+      653
     ],
     "severity" : "warning"
   }

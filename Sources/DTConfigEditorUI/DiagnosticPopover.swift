@@ -2,9 +2,10 @@ import SwiftUI
 import DTConfigCore
 
 /// SwiftUI content for a diagnostic popover, showing severity, message,
-/// and code for each overlapping diagnostic at the cursor position.
+/// code, and fix-it buttons for each overlapping diagnostic.
 struct DiagnosticPopoverContent: View {
     let diagnostics: [Diagnostic]
+    var onApplyFixIt: ((FixIt) -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -17,6 +18,18 @@ struct DiagnosticPopoverContent: View {
                         Text(diag.code)
                             .font(.system(size: 10))
                             .foregroundStyle(.secondary)
+                        if !diag.fixIts.isEmpty {
+                            HStack(spacing: 4) {
+                                ForEach(Array(diag.fixIts.enumerated()), id: \.offset) { _, fixIt in
+                                    Button(fixIt.label) {
+                                        onApplyFixIt?(fixIt)
+                                    }
+                                    .font(.system(size: 11))
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -52,6 +65,7 @@ import AppKit
 final class DiagnosticPopoverController {
     private var popover: NSPopover?
     private var currentDiagnostics: [Diagnostic] = []
+    var onApplyFixIt: ((FixIt) -> Void)?
 
     func show(diagnostics: [Diagnostic], relativeTo rect: NSRect, of view: NSView) {
         guard !diagnostics.isEmpty else {
@@ -67,7 +81,10 @@ final class DiagnosticPopoverController {
         dismiss()
         currentDiagnostics = diagnostics
 
-        let content = DiagnosticPopoverContent(diagnostics: diagnostics)
+        let content = DiagnosticPopoverContent(diagnostics: diagnostics) { [weak self] fixIt in
+            self?.dismiss()
+            self?.onApplyFixIt?(fixIt)
+        }
         let hostingController = NSHostingController(rootView: content)
 
         let pop = NSPopover()

@@ -561,7 +561,28 @@ public enum Validator {
                     range: entry.valueRange,
                     severity: .warning,
                     code: "value.upscaler-empty-string",
-                    message: "Empty-string upscaler may trigger default 4x upscaler; use null instead"))
+                    message: "Empty-string upscaler may trigger default 4x upscaler; use null instead",
+                    fixIts: [
+                        FixIt(range: entry.valueRange, replacement: "null",
+                              label: "Replace \"\" with null"),
+                    ]))
+            }
+        }
+
+        // Rule 8: refinerModel / faceRestoration empty string → prefer null
+        for nullableKey in ["refinerModel", "faceRestoration"] {
+            if let entry = fields[nullableKey], let val = entry.value {
+                if case .string("") = val {
+                    diagnostics.append(Diagnostic(
+                        range: entry.valueRange,
+                        severity: .warning,
+                        code: "style.prefer-null",
+                        message: "\"\(nullableKey)\" is \"\"; use null instead",
+                        fixIts: [
+                            FixIt(range: entry.valueRange, replacement: "null",
+                                  label: "Replace \"\" with null"),
+                        ]))
+                }
             }
         }
     }

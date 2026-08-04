@@ -9,6 +9,7 @@ public struct ProblemsListView: View {
     private let diagnostics: [Diagnostic]
     private let lineIndex: LineIndex
     private let onSelect: (Diagnostic) -> Void
+    private let onApplyFixIt: ((FixIt) -> Void)?
 
     @State private var showErrors = true
     @State private var showWarnings = true
@@ -17,11 +18,13 @@ public struct ProblemsListView: View {
     public init(
         diagnostics: [Diagnostic],
         text: String,
-        onSelect: @escaping (Diagnostic) -> Void
+        onSelect: @escaping (Diagnostic) -> Void,
+        onApplyFixIt: ((FixIt) -> Void)? = nil
     ) {
         self.diagnostics = diagnostics
         self.lineIndex = LineIndex(text)
         self.onSelect = onSelect
+        self.onApplyFixIt = onApplyFixIt
     }
 
     public var body: some View {
@@ -101,6 +104,18 @@ public struct ProblemsListView: View {
                         Text(diag.code)
                             .font(.system(size: 10))
                             .foregroundStyle(.tertiary)
+                    }
+                    if !diag.fixIts.isEmpty, let applyFixIt = onApplyFixIt {
+                        HStack(spacing: 4) {
+                            ForEach(Array(diag.fixIts.enumerated()), id: \.offset) { _, fixIt in
+                                Button(fixIt.label) {
+                                    applyFixIt(fixIt)
+                                }
+                                .font(.system(size: 11))
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                            }
+                        }
                     }
                 }
                 Spacer()

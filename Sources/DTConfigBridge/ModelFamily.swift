@@ -41,11 +41,21 @@ public enum ModelFamilyDetector {
             let keyNode = member.children[0]
             guard let key = extractKey(keyNode, tokens: parseResult.tokens) else { continue }
             if inert.contains(key) {
+                let removalRange = parseResult.memberRemovalRange(
+                    forMemberAt: member.byteRange, in: objectNode)
+                var fixIts: [FixIt] = []
+                if let removal = removalRange {
+                    fixIts.append(FixIt(
+                        range: removal,
+                        replacement: "",
+                        label: "Remove \"\(key)\""))
+                }
                 diagnostics.append(Diagnostic(
                     range: member.byteRange,
                     severity: .inert,
                     code: "inert.video-field",
-                    message: "\"\(key)\" is unused by image models"))
+                    message: "\"\(key)\" is unused by image models",
+                    fixIts: fixIts))
             }
         }
         return diagnostics
