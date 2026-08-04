@@ -71,6 +71,7 @@ public struct ConfigTextView<Model: ConfigTextEditing & Observable>: NSViewRepre
         let theme = EditorTheme.resolved(for: colorScheme)
 
         textView.backgroundColor = NSColor(theme.background)
+        textView.textColor = NSColor(theme.foreground)
         textView.insertionPointColor = NSColor(theme.foreground)
 
         // Sync text only for external model changes (e.g. set(_:to:)).
@@ -154,6 +155,7 @@ public struct ConfigTextView<Model: ConfigTextEditing & Observable>: UIViewRepre
         let theme = EditorTheme.resolved(for: colorScheme)
 
         textView.backgroundColor = UIColor(theme.background)
+        textView.textColor = UIColor(theme.foreground)
         textView.tintColor = UIColor(theme.foreground)
 
         if !coordinator.isSyncing && textView.text != model.text {

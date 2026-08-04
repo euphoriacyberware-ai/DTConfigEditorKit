@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		A436EC563020F65A003E472A /* DTConfigEditorKit in Frameworks */ = {isa = PBXBuildFile; productRef = A436EC553020F65A003E472A /* DTConfigEditorKit */; };
+		A436EC583020F65A003E472A /* DTConfigBridge in Frameworks */ = {isa = PBXBuildFile; productRef = A436EC573020F65A003E472A /* DTConfigBridge */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -57,6 +58,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A436EC563020F65A003E472A /* DTConfigEditorKit in Frameworks */,
+				A436EC583020F65A003E472A /* DTConfigBridge in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -118,6 +120,7 @@
 			name = DTConfigEditorApp;
 			packageProductDependencies = (
 				A436EC553020F65A003E472A /* DTConfigEditorKit */,
+				A436EC573020F65A003E472A /* DTConfigBridge */,
 			);
 			productName = DTConfigEditorApp;
 			productReference = A436EC283020F598003E472A /* DTConfigEditorApp.app */;
@@ -399,13 +402,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = DTConfigEditorApp/DTConfigEditorApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 3CC4EX7YW2;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
+				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -443,13 +447,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = DTConfigEditorApp/DTConfigEditorApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 3CC4EX7YW2;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
+				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -636,6 +641,10 @@
 		A436EC553020F65A003E472A /* DTConfigEditorKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = DTConfigEditorKit;
+		};
+		A436EC573020F65A003E472A /* DTConfigBridge */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DTConfigBridge;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
