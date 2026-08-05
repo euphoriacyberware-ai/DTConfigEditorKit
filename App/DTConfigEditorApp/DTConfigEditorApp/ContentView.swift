@@ -1,154 +1,235 @@
-import SwiftUI
 import DTConfigEditorKit
+import DTConfigBridge
+import SwiftUI
+import UniformTypeIdentifiers
+
+// MARK: - FocusedValue for menu commands
+
+struct AppStateKey: FocusedValueKey {
+    typealias Value = AppState
+}
+
+extension FocusedValues {
+    var appState: AppState? {
+        get { self[AppStateKey.self] }
+        set { self[AppStateKey.self] = newValue }
+    }
+}
+
+// MARK: - Main Content View
 
 struct ContentView: View {
-    @State private var config: DrawThingsConfiguration?
-    @State private var errorMessage: String?
+    @Bindable var appState: AppState
+    @State private var showConnectionSheet = false
+    @State private var showDiscardAlert = false
+    @State private var pendingAction: PendingAction?
+
+    enum PendingAction {
+        case paste
+        case revert
+        case newDocument
+        case openURL(URL)
+    }
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if let _ = config {
-                    JSONEditorView(config: configBinding)
-                } else {
-                    emptyState
-                }
-            }
-            .navigationTitle("DT Config Editor")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        pasteFromClipboard()
-                    } label: {
-                        Label("Paste Config", systemImage: "doc.on.clipboard")
-                    }
-                }
-
-                if config != nil {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button {
-                            copyToClipboard()
-                        } label: {
-                            Label("Copy Config", systemImage: "doc.on.doc")
-                        }
-                    }
-                }
-            }
-            #if DEBUG
-            .toolbar {
-                ToolbarItem(placement: .secondaryAction) {
-                    Menu {
-                        ForEach(DebugFixtures.all) { fixture in
-                            Button(fixture.label) {
-                                loadFixture(fixture)
-                            }
-                        }
-                    } label: {
-                        Label("Load Fixture", systemImage: "doc.text.magnifyingglass")
-                    }
-                }
-            }
-            #endif
-            .alert("Error", isPresented: showingError, actions: {}) {
-                Text(errorMessage ?? "")
-            }
+        VStack(spacing: 0) {
+            editorArea
+            StatusBarView(appState: appState)
         }
+        .focusedValue(\.appState, appState)
+        .navigationTitle(appState.documentTitle)
+        #if os(macOS)
+        .navigationSubtitle(appState.emissionStyleChoice.rawValue)
+        #endif
+        .toolbar { toolbarContent }
+        .alert("Unsaved Changes", isPresented: $showDiscardAlert) {
+            Button("Discard", role: .destructive) { performPendingAction() }
+            Button("Cancel", role: .cancel) { pendingAction = nil }
+        } message: {
+            Text("You have unsaved changes. Discard them?")
+        }
+        .sheet(isPresented: $showConnectionSheet) {
+            ConnectionView(appState: appState)
+        }
+        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+            handleDrop(providers)
+        }
+        .preferredColorScheme(resolvedColorScheme)
+        #if DEBUG
+        .developerOverlay(appState: appState)
+        #endif
     }
 
-    // MARK: - Empty state
+    // MARK: - Editor Area
 
-    private var emptyState: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "doc.on.clipboard")
-                .font(.system(size: 48))
-                .foregroundStyle(.secondary)
-            Text("No Configuration Loaded")
-                .font(.headline)
-            Text("Copy a Draw Things config JSON to your clipboard, then tap Paste.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-            Button("Paste from Clipboard") {
-                pasteFromClipboard()
+    @ViewBuilder
+    private var editorArea: some View {
+        #if os(macOS)
+        HStack(spacing: 0) {
+            ConfigTextView(model: appState.model)
+
+            if appState.showProblemsList {
+                Divider()
+                ProblemsListView(
+                    diagnostics: appState.filteredDiagnostics,
+                    text: appState.model.text,
+                    onSelect: { _ in },
+                    onApplyFixIt: { fixIt in
+                        appState.model.text = FixItApplicator.apply(fixIt, to: appState.model.text)
+                    }
+                )
+                .frame(width: 320)
             }
-            .buttonStyle(.borderedProminent)
-        }
-    }
-
-    // MARK: - Clipboard
-
-    private func pasteFromClipboard() {
-        #if os(iOS)
-        guard let string = UIPasteboard.general.string else {
-            errorMessage = "Clipboard is empty or does not contain text."
-            return
         }
         #else
-        guard let string = NSPasteboard.general.string(forType: .string) else {
-            errorMessage = "Clipboard is empty or does not contain text."
-            return
+        VStack(spacing: 0) {
+            ConfigTextView(model: appState.model)
+
+            if appState.showProblemsList {
+                Divider()
+                ProblemsListView(
+                    diagnostics: appState.filteredDiagnostics,
+                    text: appState.model.text,
+                    onSelect: { _ in },
+                    onApplyFixIt: { fixIt in
+                        appState.model.text = FixItApplicator.apply(fixIt, to: appState.model.text)
+                    }
+                )
+                .frame(maxHeight: 250)
+            }
         }
         #endif
-
-        guard let data = string.data(using: .utf8) else {
-            errorMessage = "Could not read clipboard text as UTF-8."
-            return
-        }
-
-        do {
-            config = try DrawThingsConfiguration(jsonData: data)
-            errorMessage = nil
-        } catch {
-            errorMessage = "Failed to parse config: \(error.localizedDescription)"
-        }
     }
 
-    private func copyToClipboard() {
-        guard let config else { return }
-        do {
-            let data = try config.jsonData()
-            let string = String(data: data, encoding: .utf8) ?? ""
-            #if os(iOS)
-            UIPasteboard.general.string = string
-            #else
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(string, forType: .string)
-            #endif
-        } catch {
-            errorMessage = "Failed to encode config: \(error.localizedDescription)"
-        }
-    }
+    // MARK: - Toolbar
 
-    // MARK: - Debug fixtures
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        #if os(macOS)
+        ToolbarItemGroup(placement: .primaryAction) {
+            Button {
+                guardedAction(.paste)
+            } label: {
+                Label("Paste from Clipboard", systemImage: "doc.on.clipboard")
+            }
+            .help("Replace document with clipboard contents")
 
-    #if DEBUG
-    private func loadFixture(_ fixture: DebugFixtures.Fixture) {
-        do {
-            config = try DebugFixtures.load(fixture)
-            errorMessage = nil
-        } catch {
-            errorMessage = "Failed to load fixture: \(error.localizedDescription)"
+            Picker("Emission Style", selection: Binding(
+                get: { appState.emissionStyleChoice },
+                set: { appState.switchEmissionStyle(to: $0) }
+            )) {
+                ForEach(EmissionStyleChoice.allCases) { style in
+                    Text(style.rawValue).tag(style)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 300)
+            .help("Re-emit config in the selected style")
+
+            Button {
+                appState.showProblemsList.toggle()
+            } label: {
+                Label("Problems", systemImage: appState.showProblemsList
+                      ? "sidebar.trailing" : "sidebar.trailing")
+            }
+            .help("Toggle problems list")
+
+            Button {
+                showConnectionSheet = true
+            } label: {
+                Label("Connection", systemImage: connectionIcon)
+            }
+            .help("Draw Things server connection")
         }
+        #else
+        ToolbarItem(placement: .primaryAction) {
+            Menu {
+                Button("Paste from Clipboard", systemImage: "doc.on.clipboard") {
+                    guardedAction(.paste)
+                }
+                Button("Copy Document", systemImage: "doc.on.doc") {
+                    appState.copyToClipboard()
+                }
+                Divider()
+                Button("Format", systemImage: "text.alignleft") {
+                    appState.formatDocument()
+                }
+                Button("Sort Keys", systemImage: "arrow.up.arrow.down") {
+                    appState.sortDocumentKeys()
+                }
+                Divider()
+                Button("Toggle Problems", systemImage: "list.bullet") {
+                    appState.showProblemsList.toggle()
+                }
+                Button("Connection", systemImage: connectionIcon) {
+                    showConnectionSheet = true
+                }
+            } label: {
+                Label("Actions", systemImage: "ellipsis.circle")
+            }
+        }
+        #endif
     }
-    #endif
 
     // MARK: - Helpers
 
-    private var configBinding: Binding<DrawThingsConfiguration> {
-        Binding(
-            get: { config! },
-            set: { config = $0 }
-        )
+    private var connectionIcon: String {
+        switch appState.connectionState {
+        case .connected: return "bolt.fill"
+        case .error: return "bolt.slash"
+        default: return "bolt"
+        }
     }
 
-    private var showingError: Binding<Bool> {
-        Binding(
-            get: { errorMessage != nil },
-            set: { if !$0 { errorMessage = nil } }
-        )
+    private var resolvedColorScheme: ColorScheme? {
+        switch appState.preferredColorScheme {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+
+    // MARK: - Discard confirmation
+
+    private func guardedAction(_ action: PendingAction) {
+        if appState.isDirty {
+            pendingAction = action
+            showDiscardAlert = true
+        } else {
+            perform(action)
+        }
+    }
+
+    private func performPendingAction() {
+        guard let action = pendingAction else { return }
+        pendingAction = nil
+        perform(action)
+    }
+
+    private func perform(_ action: PendingAction) {
+        switch action {
+        case .paste:
+            appState.pasteFromClipboard()
+        case .revert:
+            appState.revert()
+        case .newDocument:
+            appState.newDocument()
+        case .openURL(let url):
+            appState.readAndLoad(url: url)
+        }
+    }
+
+    // MARK: - Drag and drop
+
+    private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
+        guard let provider = providers.first else { return false }
+        provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { data, _ in
+            guard let data = data as? Data,
+                  let url = URL(dataRepresentation: data, relativeTo: nil) else { return }
+            Task { @MainActor in
+                guardedAction(.openURL(url))
+            }
+        }
+        return true
     }
 }

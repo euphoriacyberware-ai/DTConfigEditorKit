@@ -1,0 +1,14 @@
+[
+  {
+    "code" : "unknown-key",
+    "fixIts" : [
+
+    ],
+    "message" : "Unknown key \"id\"; may be from a newer Draw Things version",
+    "range" : [
+      753,
+      757
+    ],
+    "severity" : "warning"
+  }
+]

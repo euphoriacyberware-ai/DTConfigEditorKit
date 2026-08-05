@@ -1,0 +1,50 @@
+[
+  {
+    "code" : "cross-field.hires-fix-disabled",
+    "fixIts" : [
+
+    ],
+    "message" : "hiresFixHeight is set but hiresFix is disabled",
+    "range" : [
+      820,
+      824
+    ],
+    "severity" : "warning"
+  },
+  {
+    "code" : "cross-field.hires-fix-disabled",
+    "fixIts" : [
+
+    ],
+    "message" : "hiresFixWidth is set but hiresFix is disabled",
+    "range" : [
+      865,
+      868
+    ],
+    "severity" : "warning"
+  },
+  {
+    "code" : "unknown-key",
+    "fixIts" : [
+
+    ],
+    "message" : "Unknown key \"id\"; may be from a newer Draw Things version",
+    "range" : [
+      869,
+      873
+    ],
+    "severity" : "warning"
+  },
+  {
+    "code" : "cross-field.tea-cache-disabled",
+    "fixIts" : [
+
+    ],
+    "message" : "teaCacheThreshold is set but teaCache is disabled",
+    "range" : [
+      2041,
+      2044
+    ],
+    "severity" : "warning"
+  }
+]

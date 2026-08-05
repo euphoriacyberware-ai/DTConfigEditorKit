@@ -1,0 +1,38 @@
+[
+  {
+    "code" : "cross-field.hires-fix-disabled",
+    "fixIts" : [
+
+    ],
+    "message" : "hiresFixHeight is set but hiresFix is disabled",
+    "range" : [
+      698,
+      701
+    ],
+    "severity" : "warning"
+  },
+  {
+    "code" : "cross-field.hires-fix-disabled",
+    "fixIts" : [
+
+    ],
+    "message" : "hiresFixWidth is set but hiresFix is disabled",
+    "range" : [
+      749,
+      753
+    ],
+    "severity" : "warning"
+  },
+  {
+    "code" : "unknown-key",
+    "fixIts" : [
+
+    ],
+    "message" : "Unknown key \"id\"; may be from a newer Draw Things version",
+    "range" : [
+      757,
+      761
+    ],
+    "severity" : "warning"
+  }
+]

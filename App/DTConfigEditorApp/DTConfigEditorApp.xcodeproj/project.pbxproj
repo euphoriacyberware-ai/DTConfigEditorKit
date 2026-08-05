@@ -7,44 +7,45 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A436EBDC301F7E11003E472A /* DTConfigEditorKit in Frameworks */ = {isa = PBXBuildFile; productRef = A436EBDB301F7E11003E472A /* DTConfigEditorKit */; };
+		A436EC563020F65A003E472A /* DTConfigEditorKit in Frameworks */ = {isa = PBXBuildFile; productRef = A436EC553020F65A003E472A /* DTConfigEditorKit */; };
+		A436EC583020F65A003E472A /* DTConfigBridge in Frameworks */ = {isa = PBXBuildFile; productRef = A436EC573020F65A003E472A /* DTConfigBridge */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		A436EBBE301F7DE0003E472A /* PBXContainerItemProxy */ = {
+		A436EC383020F59A003E472A /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
-			containerPortal = A436EBA6301F7DDF003E472A /* Project object */;
+			containerPortal = A436EC203020F598003E472A /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = A436EBAD301F7DDF003E472A;
+			remoteGlobalIDString = A436EC273020F598003E472A;
 			remoteInfo = DTConfigEditorApp;
 		};
-		A436EBC8301F7DE0003E472A /* PBXContainerItemProxy */ = {
+		A436EC423020F59A003E472A /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
-			containerPortal = A436EBA6301F7DDF003E472A /* Project object */;
+			containerPortal = A436EC203020F598003E472A /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = A436EBAD301F7DDF003E472A;
+			remoteGlobalIDString = A436EC273020F598003E472A;
 			remoteInfo = DTConfigEditorApp;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		A436EBAE301F7DDF003E472A /* DTConfigEditorApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DTConfigEditorApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		A436EBBD301F7DE0003E472A /* DTConfigEditorAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DTConfigEditorAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		A436EBC7301F7DE0003E472A /* DTConfigEditorAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DTConfigEditorAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A436EC283020F598003E472A /* DTConfigEditorApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DTConfigEditorApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A436EC373020F59A003E472A /* DTConfigEditorAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DTConfigEditorAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A436EC413020F59A003E472A /* DTConfigEditorAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DTConfigEditorAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		A436EBB0301F7DDF003E472A /* DTConfigEditorApp */ = {
+		A436EC2A3020F598003E472A /* DTConfigEditorApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = DTConfigEditorApp;
 			sourceTree = "<group>";
 		};
-		A436EBC0301F7DE0003E472A /* DTConfigEditorAppTests */ = {
+		A436EC3A3020F59A003E472A /* DTConfigEditorAppTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = DTConfigEditorAppTests;
 			sourceTree = "<group>";
 		};
-		A436EBCA301F7DE0003E472A /* DTConfigEditorAppUITests */ = {
+		A436EC443020F59A003E472A /* DTConfigEditorAppUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = DTConfigEditorAppUITests;
 			sourceTree = "<group>";
@@ -52,22 +53,23 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		A436EBAB301F7DDF003E472A /* Frameworks */ = {
+		A436EC253020F598003E472A /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A436EBDC301F7E11003E472A /* DTConfigEditorKit in Frameworks */,
+				A436EC563020F65A003E472A /* DTConfigEditorKit in Frameworks */,
+				A436EC583020F65A003E472A /* DTConfigBridge in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A436EBBA301F7DE0003E472A /* Frameworks */ = {
+		A436EC343020F59A003E472A /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A436EBC4301F7DE0003E472A /* Frameworks */ = {
+		A436EC3E3020F59A003E472A /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -77,22 +79,22 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		A436EBA5301F7DDF003E472A = {
+		A436EC1F3020F598003E472A = {
 			isa = PBXGroup;
 			children = (
-				A436EBB0301F7DDF003E472A /* DTConfigEditorApp */,
-				A436EBC0301F7DE0003E472A /* DTConfigEditorAppTests */,
-				A436EBCA301F7DE0003E472A /* DTConfigEditorAppUITests */,
-				A436EBAF301F7DDF003E472A /* Products */,
+				A436EC2A3020F598003E472A /* DTConfigEditorApp */,
+				A436EC3A3020F59A003E472A /* DTConfigEditorAppTests */,
+				A436EC443020F59A003E472A /* DTConfigEditorAppUITests */,
+				A436EC293020F598003E472A /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		A436EBAF301F7DDF003E472A /* Products */ = {
+		A436EC293020F598003E472A /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A436EBAE301F7DDF003E472A /* DTConfigEditorApp.app */,
-				A436EBBD301F7DE0003E472A /* DTConfigEditorAppTests.xctest */,
-				A436EBC7301F7DE0003E472A /* DTConfigEditorAppUITests.xctest */,
+				A436EC283020F598003E472A /* DTConfigEditorApp.app */,
+				A436EC373020F59A003E472A /* DTConfigEditorAppTests.xctest */,
+				A436EC413020F59A003E472A /* DTConfigEditorAppUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -100,138 +102,139 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		A436EBAD301F7DDF003E472A /* DTConfigEditorApp */ = {
+		A436EC273020F598003E472A /* DTConfigEditorApp */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A436EBD1301F7DE0003E472A /* Build configuration list for PBXNativeTarget "DTConfigEditorApp" */;
+			buildConfigurationList = A436EC4B3020F59A003E472A /* Build configuration list for PBXNativeTarget "DTConfigEditorApp" */;
 			buildPhases = (
-				A436EBAA301F7DDF003E472A /* Sources */,
-				A436EBAB301F7DDF003E472A /* Frameworks */,
-				A436EBAC301F7DDF003E472A /* Resources */,
+				A436EC243020F598003E472A /* Sources */,
+				A436EC253020F598003E472A /* Frameworks */,
+				A436EC263020F598003E472A /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				A436EBB0301F7DDF003E472A /* DTConfigEditorApp */,
+				A436EC2A3020F598003E472A /* DTConfigEditorApp */,
 			);
 			name = DTConfigEditorApp;
 			packageProductDependencies = (
-				A436EBDB301F7E11003E472A /* DTConfigEditorKit */,
+				A436EC553020F65A003E472A /* DTConfigEditorKit */,
+				A436EC573020F65A003E472A /* DTConfigBridge */,
 			);
 			productName = DTConfigEditorApp;
-			productReference = A436EBAE301F7DDF003E472A /* DTConfigEditorApp.app */;
+			productReference = A436EC283020F598003E472A /* DTConfigEditorApp.app */;
 			productType = "com.apple.product-type.application";
 		};
-		A436EBBC301F7DE0003E472A /* DTConfigEditorAppTests */ = {
+		A436EC363020F59A003E472A /* DTConfigEditorAppTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A436EBD4301F7DE0003E472A /* Build configuration list for PBXNativeTarget "DTConfigEditorAppTests" */;
+			buildConfigurationList = A436EC4E3020F59A003E472A /* Build configuration list for PBXNativeTarget "DTConfigEditorAppTests" */;
 			buildPhases = (
-				A436EBB9301F7DE0003E472A /* Sources */,
-				A436EBBA301F7DE0003E472A /* Frameworks */,
-				A436EBBB301F7DE0003E472A /* Resources */,
+				A436EC333020F59A003E472A /* Sources */,
+				A436EC343020F59A003E472A /* Frameworks */,
+				A436EC353020F59A003E472A /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				A436EBBF301F7DE0003E472A /* PBXTargetDependency */,
+				A436EC393020F59A003E472A /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				A436EBC0301F7DE0003E472A /* DTConfigEditorAppTests */,
+				A436EC3A3020F59A003E472A /* DTConfigEditorAppTests */,
 			);
 			name = DTConfigEditorAppTests;
 			packageProductDependencies = (
 			);
 			productName = DTConfigEditorAppTests;
-			productReference = A436EBBD301F7DE0003E472A /* DTConfigEditorAppTests.xctest */;
+			productReference = A436EC373020F59A003E472A /* DTConfigEditorAppTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		A436EBC6301F7DE0003E472A /* DTConfigEditorAppUITests */ = {
+		A436EC403020F59A003E472A /* DTConfigEditorAppUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A436EBD7301F7DE0003E472A /* Build configuration list for PBXNativeTarget "DTConfigEditorAppUITests" */;
+			buildConfigurationList = A436EC513020F59A003E472A /* Build configuration list for PBXNativeTarget "DTConfigEditorAppUITests" */;
 			buildPhases = (
-				A436EBC3301F7DE0003E472A /* Sources */,
-				A436EBC4301F7DE0003E472A /* Frameworks */,
-				A436EBC5301F7DE0003E472A /* Resources */,
+				A436EC3D3020F59A003E472A /* Sources */,
+				A436EC3E3020F59A003E472A /* Frameworks */,
+				A436EC3F3020F59A003E472A /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				A436EBC9301F7DE0003E472A /* PBXTargetDependency */,
+				A436EC433020F59A003E472A /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				A436EBCA301F7DE0003E472A /* DTConfigEditorAppUITests */,
+				A436EC443020F59A003E472A /* DTConfigEditorAppUITests */,
 			);
 			name = DTConfigEditorAppUITests;
 			packageProductDependencies = (
 			);
 			productName = DTConfigEditorAppUITests;
-			productReference = A436EBC7301F7DE0003E472A /* DTConfigEditorAppUITests.xctest */;
+			productReference = A436EC413020F59A003E472A /* DTConfigEditorAppUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		A436EBA6301F7DDF003E472A /* Project object */ = {
+		A436EC203020F598003E472A /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2660;
 				LastUpgradeCheck = 2660;
 				TargetAttributes = {
-					A436EBAD301F7DDF003E472A = {
+					A436EC273020F598003E472A = {
 						CreatedOnToolsVersion = 26.6;
 					};
-					A436EBBC301F7DE0003E472A = {
+					A436EC363020F59A003E472A = {
 						CreatedOnToolsVersion = 26.6;
-						TestTargetID = A436EBAD301F7DDF003E472A;
+						TestTargetID = A436EC273020F598003E472A;
 					};
-					A436EBC6301F7DE0003E472A = {
+					A436EC403020F59A003E472A = {
 						CreatedOnToolsVersion = 26.6;
-						TestTargetID = A436EBAD301F7DDF003E472A;
+						TestTargetID = A436EC273020F598003E472A;
 					};
 				};
 			};
-			buildConfigurationList = A436EBA9301F7DDF003E472A /* Build configuration list for PBXProject "DTConfigEditorApp" */;
+			buildConfigurationList = A436EC233020F598003E472A /* Build configuration list for PBXProject "DTConfigEditorApp" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
 				Base,
 			);
-			mainGroup = A436EBA5301F7DDF003E472A;
+			mainGroup = A436EC1F3020F598003E472A;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				A436EBDA301F7E11003E472A /* XCLocalSwiftPackageReference "../../../DTConfigEditorKit" */,
+				A436EC543020F65A003E472A /* XCLocalSwiftPackageReference "../../../DTConfigEditorKit" */,
 			);
 			preferredProjectObjectVersion = 77;
-			productRefGroup = A436EBAF301F7DDF003E472A /* Products */;
+			productRefGroup = A436EC293020F598003E472A /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				A436EBAD301F7DDF003E472A /* DTConfigEditorApp */,
-				A436EBBC301F7DE0003E472A /* DTConfigEditorAppTests */,
-				A436EBC6301F7DE0003E472A /* DTConfigEditorAppUITests */,
+				A436EC273020F598003E472A /* DTConfigEditorApp */,
+				A436EC363020F59A003E472A /* DTConfigEditorAppTests */,
+				A436EC403020F59A003E472A /* DTConfigEditorAppUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		A436EBAC301F7DDF003E472A /* Resources */ = {
+		A436EC263020F598003E472A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A436EBBB301F7DE0003E472A /* Resources */ = {
+		A436EC353020F59A003E472A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A436EBC5301F7DE0003E472A /* Resources */ = {
+		A436EC3F3020F59A003E472A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -241,21 +244,21 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		A436EBAA301F7DDF003E472A /* Sources */ = {
+		A436EC243020F598003E472A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A436EBB9301F7DE0003E472A /* Sources */ = {
+		A436EC333020F59A003E472A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A436EBC3301F7DE0003E472A /* Sources */ = {
+		A436EC3D3020F59A003E472A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -265,20 +268,20 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		A436EBBF301F7DE0003E472A /* PBXTargetDependency */ = {
+		A436EC393020F59A003E472A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = A436EBAD301F7DDF003E472A /* DTConfigEditorApp */;
-			targetProxy = A436EBBE301F7DE0003E472A /* PBXContainerItemProxy */;
+			target = A436EC273020F598003E472A /* DTConfigEditorApp */;
+			targetProxy = A436EC383020F59A003E472A /* PBXContainerItemProxy */;
 		};
-		A436EBC9301F7DE0003E472A /* PBXTargetDependency */ = {
+		A436EC433020F59A003E472A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = A436EBAD301F7DDF003E472A /* DTConfigEditorApp */;
-			targetProxy = A436EBC8301F7DE0003E472A /* PBXContainerItemProxy */;
+			target = A436EC273020F598003E472A /* DTConfigEditorApp */;
+			targetProxy = A436EC423020F59A003E472A /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		A436EBCF301F7DE0003E472A /* Debug */ = {
+		A436EC493020F59A003E472A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -340,7 +343,7 @@
 			};
 			name = Debug;
 		};
-		A436EBD0301F7DE0003E472A /* Release */ = {
+		A436EC4A3020F59A003E472A /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -394,18 +397,19 @@
 			};
 			name = Release;
 		};
-		A436EBD2301F7DE0003E472A /* Debug */ = {
+		A436EC4C3020F59A003E472A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = DTConfigEditorApp/DTConfigEditorApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 3CC4EX7YW2;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
+				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -438,18 +442,19 @@
 			};
 			name = Debug;
 		};
-		A436EBD3301F7DE0003E472A /* Release */ = {
+		A436EC4D3020F59A003E472A /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = DTConfigEditorApp/DTConfigEditorApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 3CC4EX7YW2;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
+				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -482,7 +487,7 @@
 			};
 			name = Release;
 		};
-		A436EBD5301F7DE0003E472A /* Debug */ = {
+		A436EC4F3020F59A003E472A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -508,7 +513,7 @@
 			};
 			name = Debug;
 		};
-		A436EBD6301F7DE0003E472A /* Release */ = {
+		A436EC503020F59A003E472A /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -534,7 +539,7 @@
 			};
 			name = Release;
 		};
-		A436EBD8301F7DE0003E472A /* Debug */ = {
+		A436EC523020F59A003E472A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -559,7 +564,7 @@
 			};
 			name = Debug;
 		};
-		A436EBD9301F7DE0003E472A /* Release */ = {
+		A436EC533020F59A003E472A /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -587,38 +592,38 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		A436EBA9301F7DDF003E472A /* Build configuration list for PBXProject "DTConfigEditorApp" */ = {
+		A436EC233020F598003E472A /* Build configuration list for PBXProject "DTConfigEditorApp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				A436EBCF301F7DE0003E472A /* Debug */,
-				A436EBD0301F7DE0003E472A /* Release */,
+				A436EC493020F59A003E472A /* Debug */,
+				A436EC4A3020F59A003E472A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A436EBD1301F7DE0003E472A /* Build configuration list for PBXNativeTarget "DTConfigEditorApp" */ = {
+		A436EC4B3020F59A003E472A /* Build configuration list for PBXNativeTarget "DTConfigEditorApp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				A436EBD2301F7DE0003E472A /* Debug */,
-				A436EBD3301F7DE0003E472A /* Release */,
+				A436EC4C3020F59A003E472A /* Debug */,
+				A436EC4D3020F59A003E472A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A436EBD4301F7DE0003E472A /* Build configuration list for PBXNativeTarget "DTConfigEditorAppTests" */ = {
+		A436EC4E3020F59A003E472A /* Build configuration list for PBXNativeTarget "DTConfigEditorAppTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				A436EBD5301F7DE0003E472A /* Debug */,
-				A436EBD6301F7DE0003E472A /* Release */,
+				A436EC4F3020F59A003E472A /* Debug */,
+				A436EC503020F59A003E472A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A436EBD7301F7DE0003E472A /* Build configuration list for PBXNativeTarget "DTConfigEditorAppUITests" */ = {
+		A436EC513020F59A003E472A /* Build configuration list for PBXNativeTarget "DTConfigEditorAppUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				A436EBD8301F7DE0003E472A /* Debug */,
-				A436EBD9301F7DE0003E472A /* Release */,
+				A436EC523020F59A003E472A /* Debug */,
+				A436EC533020F59A003E472A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -626,18 +631,22 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		A436EBDA301F7E11003E472A /* XCLocalSwiftPackageReference "../../../DTConfigEditorKit" */ = {
+		A436EC543020F65A003E472A /* XCLocalSwiftPackageReference "../../../DTConfigEditorKit" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../../../DTConfigEditorKit;
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		A436EBDB301F7E11003E472A /* DTConfigEditorKit */ = {
+		A436EC553020F65A003E472A /* DTConfigEditorKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = DTConfigEditorKit;
 		};
+		A436EC573020F65A003E472A /* DTConfigBridge */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DTConfigBridge;
+		};
 /* End XCSwiftPackageProductDependency section */
 	};
-	rootObject = A436EBA6301F7DDF003E472A /* Project object */;
+	rootObject = A436EC203020F598003E472A /* Project object */;
 }

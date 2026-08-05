@@ -5,24 +5,75 @@ import PackageDescription
 
 let package = Package(
     name: "DTConfigEditorKit",
-    platforms: [.macOS(.v13), .iOS(.v16)],
+    platforms: [
+        .macOS(.v14),
+        .iOS(.v17),
+    ],
     products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
             name: "DTConfigEditorKit",
             targets: ["DTConfigEditorKit"]
         ),
+        .library(
+            name: "DTConfigBridge",
+            targets: ["DTConfigBridge"]
+        ),
+        .executable(
+            name: "configlint",
+            targets: ["configlint"]
+        ),
+    ],
+    dependencies: [
+        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.5.0"),
+        .package(path: "Reference/DTClient"),
     ],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
+        .target(name: "DTConfigCore"),
+        .executableTarget(
+            name: "configlint",
+            dependencies: [
+                "DTConfigCore",
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+            ]
+        ),
         .target(
-            name: "DTConfigEditorKit"
+            name: "DTConfigBridge",
+            dependencies: [
+                "DTConfigCore",
+                .product(name: "DrawThingsClient", package: "DTClient"),
+            ]
+        ),
+        .target(
+            name: "DTConfigEditorUI",
+            dependencies: ["DTConfigCore"]
+        ),
+        .target(
+            name: "DTConfigEditorKit",
+            dependencies: ["DTConfigCore", "DTConfigEditorUI"]
+        ),
+        .testTarget(
+            name: "DTConfigCoreTests",
+            dependencies: ["DTConfigCore"]
+        ),
+        .testTarget(
+            name: "ConfigLintTests",
+            dependencies: ["DTConfigCore"]
+        ),
+        .testTarget(
+            name: "DTConfigBridgeTests",
+            dependencies: [
+                "DTConfigBridge",
+                "DTConfigCore",
+                .product(name: "DrawThingsClient", package: "DTClient"),
+            ]
+        ),
+        .testTarget(
+            name: "DTConfigEditorUITests",
+            dependencies: ["DTConfigEditorUI", "DTConfigCore"]
         ),
         .testTarget(
             name: "DTConfigEditorKitTests",
-            dependencies: ["DTConfigEditorKit"],
-            resources: [.copy("Fixtures")]
+            dependencies: ["DTConfigEditorKit"]
         ),
     ],
     swiftLanguageModes: [.v6]

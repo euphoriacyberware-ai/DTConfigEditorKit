@@ -7,3 +7,5 @@ DerivedData/
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 .netrc
 CLAUDE.md
+/Reference
+App/DTConfigEditorApp/DTConfigEditorApp.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
