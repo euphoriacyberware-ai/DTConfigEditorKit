@@ -25,7 +25,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.5.0"),
-        .package(path: "Reference/DTClient"),
+        .package(url: "https://github.com/euphoriacyberware-ai/DT-gRPC-Swift-Client.git", branch: "main"),
     ],
     targets: [
         .target(name: "DTConfigCore"),
@@ -40,7 +40,7 @@ let package = Package(
             name: "DTConfigBridge",
             dependencies: [
                 "DTConfigCore",
-                .product(name: "DrawThingsClient", package: "DTClient"),
+                .product(name: "DrawThingsClient", package: "DT-gRPC-Swift-Client"),
             ]
         ),
         .target(
@@ -64,7 +64,7 @@ let package = Package(
             dependencies: [
                 "DTConfigBridge",
                 "DTConfigCore",
-                .product(name: "DrawThingsClient", package: "DTClient"),
+                .product(name: "DrawThingsClient", package: "DT-gRPC-Swift-Client"),
             ]
         ),
         .testTarget(

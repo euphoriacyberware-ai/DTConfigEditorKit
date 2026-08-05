@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		A436EC563020F65A003E472A /* DTConfigEditorKit in Frameworks */ = {isa = PBXBuildFile; productRef = A436EC553020F65A003E472A /* DTConfigEditorKit */; };
 		A436EC583020F65A003E472A /* DTConfigBridge in Frameworks */ = {isa = PBXBuildFile; productRef = A436EC573020F65A003E472A /* DTConfigBridge */; };
+		A436ED5C3022D601003E472A /* DrawThingsClient in Frameworks */ = {isa = PBXBuildFile; productRef = A436ED5B3022D601003E472A /* DrawThingsClient */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -59,6 +60,7 @@
 			files = (
 				A436EC563020F65A003E472A /* DTConfigEditorKit in Frameworks */,
 				A436EC583020F65A003E472A /* DTConfigBridge in Frameworks */,
+				A436ED5C3022D601003E472A /* DrawThingsClient in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -121,6 +123,7 @@
 			packageProductDependencies = (
 				A436EC553020F65A003E472A /* DTConfigEditorKit */,
 				A436EC573020F65A003E472A /* DTConfigBridge */,
+				A436ED5B3022D601003E472A /* DrawThingsClient */,
 			);
 			productName = DTConfigEditorApp;
 			productReference = A436EC283020F598003E472A /* DTConfigEditorApp.app */;
@@ -206,6 +209,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				A436EC543020F65A003E472A /* XCLocalSwiftPackageReference "../../../DTConfigEditorKit" */,
+				A436ED5A3022D601003E472A /* XCRemoteSwiftPackageReference "DT-gRPC-Swift-Client" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A436EC293020F598003E472A /* Products */;
@@ -637,6 +641,17 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		A436ED5A3022D601003E472A /* XCRemoteSwiftPackageReference "DT-gRPC-Swift-Client" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/euphoriacyberware-ai/DT-gRPC-Swift-Client";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		A436EC553020F65A003E472A /* DTConfigEditorKit */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -645,6 +660,11 @@
 		A436EC573020F65A003E472A /* DTConfigBridge */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = DTConfigBridge;
+		};
+		A436ED5B3022D601003E472A /* DrawThingsClient */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A436ED5A3022D601003E472A /* XCRemoteSwiftPackageReference "DT-gRPC-Swift-Client" */;
+			productName = DrawThingsClient;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

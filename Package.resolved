@@ -1,6 +1,15 @@
 {
-  "originHash" : "8bfcf11ba5362e8aa96c0585e43c91b8eebfdccacb7db1404c7b102b9eec09c0",
+  "originHash" : "7f91f566f24f54e0828c387619a9cbee2b67eb2c1f359d847f6e93d35ec78a51",
   "pins" : [
+    {
+      "identity" : "dt-grpc-swift-client",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/euphoriacyberware-ai/DT-gRPC-Swift-Client.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "840f35cc7a949c551bd24385c0938e425b122482"
+      }
+    },
     {
       "identity" : "flatbuffers",
       "kind" : "remoteSourceControl",
@@ -195,8 +204,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-system.git",
       "state" : {
-        "revision" : "50688cacbd41d547e9eb9f7a213542340b7c442b",
-        "version" : "1.7.5"
+        "revision" : "704705c5c51156ede21172a38654d522ce487074",
+        "version" : "1.8.0"
       }
     }
   ],
