@@ -64,6 +64,10 @@ public enum DrawThingsSchema {
     // MARK: - Root schema
 
     public static let root = ObjectSchema(fields: [
+        // --- Metadata ---
+        "name": FieldSchema(
+            type: .nullableString, jsonDefault: .null, label: "Configuration Name"),
+
         // --- Core ---
         "model": FieldSchema(
             type: .string, label: "Model", domainPath: .model),
@@ -127,6 +131,8 @@ public enum DrawThingsSchema {
             type: .int, jsonDefault: .int("0")),
         "preserveOriginalAfterInpaint": FieldSchema(
             type: .bool, jsonDefault: .bool(true)),
+        "enableInpainting": FieldSchema(
+            type: .bool, jsonDefault: .bool(false)),
 
         // --- Quality ---
         "sharpness": FieldSchema(
@@ -185,6 +191,8 @@ public enum DrawThingsSchema {
         "clipLText": FieldSchema(
             type: .nullableString, jsonDefault: .null),
         "openClipGText": FieldSchema(
+            type: .nullableString, jsonDefault: .null),
+        "t5Text": FieldSchema(
             type: .nullableString, jsonDefault: .null),
 
         // --- Tiled Diffusion ---

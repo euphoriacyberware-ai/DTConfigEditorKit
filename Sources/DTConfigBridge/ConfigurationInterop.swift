@@ -120,7 +120,9 @@ public enum ConfigurationInterop {
         "causalInferencePad", "fps", "motionScale", "guidingFrameNoise",
         "startFrameGuidance", "numFrames", "refinerModel", "refinerStart",
         "zeroNegativePrompt", "upscaler", "faceRestoration",
-        "clipLText", "openClipGText", "seedMode",
+        "enableInpainting",
+        "name",
+        "clipLText", "openClipGText", "t5Text", "seedMode",
         "loras", "controls",
     ]
 
@@ -202,6 +204,7 @@ public enum ConfigurationInterop {
             maskBlur: d["maskBlur"]?.asFloat ?? 1.5,
             maskBlurOutset: d["maskBlurOutset"]?.asInt32 ?? 0,
             preserveOriginalAfterInpaint: d["preserveOriginalAfterInpaint"]?.asBool ?? true,
+            enableInpainting: d["enableInpainting"]?.asBool ?? false,
             sharpness: d["sharpness"]?.asFloat ?? 0.0,
             stochasticSamplingGamma: d["stochasticSamplingGamma"]?.asFloat ?? 0.3,
             aestheticScore: d["aestheticScore"]?.asFloat ?? 6.0,
@@ -255,8 +258,10 @@ public enum ConfigurationInterop {
             zeroNegativePrompt: d["zeroNegativePrompt"]?.asBool ?? false,
             upscaler: upscaler,
             faceRestoration: faceRestoration,
+            name: d["name"]?.asOptionalString,
             clipLText: d["clipLText"]?.asOptionalString,
             openClipGText: d["openClipGText"]?.asOptionalString,
+            t5Text: d["t5Text"]?.asOptionalString,
             seedMode: d["seedMode"]?.asInt32 ?? 2
         )
     }
@@ -334,6 +339,7 @@ public enum ConfigurationInterop {
             ("maskBlur", floatVal(c.maskBlur)),
             ("maskBlurOutset", intVal(c.maskBlurOutset)),
             ("preserveOriginalAfterInpaint", .bool(c.preserveOriginalAfterInpaint)),
+            ("enableInpainting", .bool(c.enableInpainting)),
             ("sharpness", floatVal(c.sharpness)),
             ("stochasticSamplingGamma", floatVal(c.stochasticSamplingGamma)),
             ("aestheticScore", floatVal(c.aestheticScore)),
@@ -389,7 +395,9 @@ public enum ConfigurationInterop {
             ("faceRestoration", c.faceRestoration.map { .string($0) } ?? .null),
             ("clipLText", c.clipLText.map { .string($0) } ?? .null),
             ("openClipGText", c.openClipGText.map { .string($0) } ?? .null),
+            ("t5Text", c.t5Text.map { .string($0) } ?? .null),
             ("seedMode", intVal(c.seedMode)),
+            ("name", c.name.map { .string($0) } ?? .null),
             ("loras", lorasToJSON(c.loras)),
             ("controls", controlsToJSON(c.controls)),
         ]
