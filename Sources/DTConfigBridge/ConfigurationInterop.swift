@@ -101,7 +101,7 @@ public enum ConfigurationInterop {
         "clipSkip", "shift", "batchCount", "batchSize", "strength",
         "imageGuidanceScale", "clipWeight", "guidanceEmbed",
         "speedUpWithGuidanceEmbed", "cfgZeroStar", "cfgZeroInitSteps",
-        "compressionArtifacts", "compressionArtifactsQuality",
+        "compressionArtifacts", "compressionArtifactsQuality", "colorCalibration",
         "maskBlur", "maskBlurOutset", "preserveOriginalAfterInpaint",
         "sharpness", "stochasticSamplingGamma", "aestheticScore",
         "negativeAestheticScore", "negativePromptForImagePrior", "imagePriorSteps",
@@ -158,6 +158,16 @@ public enum ConfigurationInterop {
             compressionArtifacts = .disabled
         }
 
+        let colorCalibration: ColorCalibration
+        if let s = d["colorCalibration"]?.asString {
+            colorCalibration = mapColorCalibrationString(s)
+        } else if let i = d["colorCalibration"]?.asInt32,
+                  let i8 = Int8(exactly: i) {
+            colorCalibration = ColorCalibration(rawValue: i8) ?? .disabled
+        } else {
+            colorCalibration = .disabled
+        }
+
         let loras = parseLoras(d["loras"])
         let controls = parseControls(d["controls"])
 
@@ -188,6 +198,7 @@ public enum ConfigurationInterop {
             cfgZeroInitSteps: d["cfgZeroInitSteps"]?.asInt32 ?? 0,
             compressionArtifacts: compressionArtifacts,
             compressionArtifactsQuality: d["compressionArtifactsQuality"]?.asFloat ?? 43.1,
+            colorCalibration: colorCalibration,
             maskBlur: d["maskBlur"]?.asFloat ?? 1.5,
             maskBlurOutset: d["maskBlurOutset"]?.asInt32 ?? 0,
             preserveOriginalAfterInpaint: d["preserveOriginalAfterInpaint"]?.asBool ?? true,
@@ -319,6 +330,7 @@ public enum ConfigurationInterop {
             ("cfgZeroInitSteps", intVal(c.cfgZeroInitSteps)),
             ("compressionArtifacts", .string(compressionString(c.compressionArtifacts))),
             ("compressionArtifactsQuality", floatVal(c.compressionArtifactsQuality)),
+            ("colorCalibration", .string(colorCalibrationString(c.colorCalibration))),
             ("maskBlur", floatVal(c.maskBlur)),
             ("maskBlurOutset", intVal(c.maskBlurOutset)),
             ("preserveOriginalAfterInpaint", .bool(c.preserveOriginalAfterInpaint)),
@@ -552,6 +564,21 @@ public enum ConfigurationInterop {
         case .balanced: return "balanced"
         case .prompt: return "prompt"
         case .control: return "control"
+        }
+    }
+
+    private static func mapColorCalibrationString(_ s: String) -> ColorCalibration {
+        switch s.lowercased() {
+        case "none", "disabled": return .disabled
+        case "lab": return .lab
+        default: return .disabled
+        }
+    }
+
+    private static func colorCalibrationString(_ c: ColorCalibration) -> String {
+        switch c {
+        case .disabled: return "none"
+        case .lab: return "lab"
         }
     }
 }
