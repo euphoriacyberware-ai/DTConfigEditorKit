@@ -702,7 +702,11 @@ extension TextViewCoordinator: NSTextViewDelegate {
 // MARK: - Mouse tracking for diagnostic popovers
 
 extension TextViewCoordinator {
-    public func mouseMoved(with event: NSEvent) {
+    @objc public func mouseEntered(with event: NSEvent) {
+        // Tracking area entered — diagnostics shown on mouseMoved.
+    }
+
+    @objc public func mouseMoved(with event: NSEvent) {
         guard let textView else {
             popoverController.dismiss()
             return
@@ -747,7 +751,7 @@ extension TextViewCoordinator {
         }
     }
 
-    public func mouseExited(with event: NSEvent) {
+    @objc public func mouseExited(with event: NSEvent) {
         popoverController.dismiss()
         lastHoverDiagnostics = []
     }
