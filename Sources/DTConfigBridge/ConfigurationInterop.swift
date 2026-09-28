@@ -184,7 +184,7 @@ public enum ConfigurationInterop {
             model: model,
             sampler: sampler,
             guidanceScale: d["guidanceScale"]?.asFloat ?? 7.0,
-            seed: d["seed"]?.asInt64,
+            seed: d["seed"]?.asSeed,
             clipSkip: d["clipSkip"]?.asInt32 ?? 1,
             loras: loras,
             controls: controls,
@@ -262,7 +262,8 @@ public enum ConfigurationInterop {
             clipLText: d["clipLText"]?.asOptionalString,
             openClipGText: d["openClipGText"]?.asOptionalString,
             t5Text: d["t5Text"]?.asOptionalString,
-            seedMode: d["seedMode"]?.asInt32 ?? 2
+            seedMode: d["seedMode"]?.asInt32
+                .flatMap { SeedMode(rawValue: Int8(clamping: $0)) } ?? .scalealike
         )
     }
 
@@ -396,7 +397,7 @@ public enum ConfigurationInterop {
             ("clipLText", c.clipLText.map { .string($0) } ?? .null),
             ("openClipGText", c.openClipGText.map { .string($0) } ?? .null),
             ("t5Text", c.t5Text.map { .string($0) } ?? .null),
-            ("seedMode", intVal(c.seedMode)),
+            ("seedMode", intVal(Int32(c.seedMode.rawValue))),
             ("name", c.name.map { .string($0) } ?? .null),
             ("loras", lorasToJSON(c.loras)),
             ("controls", controlsToJSON(c.controls)),
@@ -615,6 +616,11 @@ extension JSONValue {
     var asInt64: Int64? {
         if case .int(let s) = self { return Int64(s) }
         return nil
+    }
+
+    /// A seed value; out-of-range values such as -1 mean random (`nil`), as in Draw Things JSON.
+    var asSeed: UInt32? {
+        asInt64.flatMap { UInt32(exactly: $0) }
     }
 
     var asFloat: Float? {

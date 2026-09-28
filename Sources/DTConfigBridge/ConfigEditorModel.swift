@@ -162,7 +162,7 @@ public final class ConfigEditorModel: ConfigTextEditing {
         case "model": if let v = value.asString { config.model = v }
         case "guidanceScale": if let v = value.asFloat { config.guidanceScale = v }
         case "seed":
-            config.seed = value.asInt64
+            config.seed = value.asSeed
         case "shift": if let v = value.asFloat { config.shift = v }
         case "strength": if let v = value.asFloat { config.strength = v }
         case "sampler":

@@ -6,8 +6,8 @@ import PackageDescription
 let package = Package(
     name: "DTConfigEditorKit",
     platforms: [
-        .macOS(.v14),
-        .iOS(.v17),
+        .macOS(.v15),
+        .iOS(.v18),
     ],
     products: [
         .library(
@@ -25,7 +25,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.5.0"),
-        .package(url: "https://github.com/euphoriacyberware-ai/DT-gRPC-Swift-Client.git", branch: "main"),
+        .package(url: "https://github.com/euphoriacyberware-ai/DrawThings-Swift.git", branch: "v2"),
     ],
     targets: [
         .target(name: "DTConfigCore"),
@@ -40,7 +40,7 @@ let package = Package(
             name: "DTConfigBridge",
             dependencies: [
                 "DTConfigCore",
-                .product(name: "DrawThingsClient", package: "DT-gRPC-Swift-Client"),
+                .product(name: "DrawThingsClient", package: "DrawThings-Swift"),
             ]
         ),
         .target(
@@ -64,7 +64,7 @@ let package = Package(
             dependencies: [
                 "DTConfigBridge",
                 "DTConfigCore",
-                .product(name: "DrawThingsClient", package: "DT-gRPC-Swift-Client"),
+                .product(name: "DrawThingsClient", package: "DrawThings-Swift"),
             ]
         ),
         .testTarget(

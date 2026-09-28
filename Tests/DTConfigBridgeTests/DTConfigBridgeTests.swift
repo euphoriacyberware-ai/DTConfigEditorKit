@@ -108,7 +108,7 @@ private func referenceConfigFromJSON(_ jsonString: String) -> DrawThingsConfigur
         model: model,
         sampler: sampler,
         guidanceScale: Float(json["guidanceScale"] as? Double ?? 7.0),
-        seed: (json["seed"] as? Int).map { Int64($0) },
+        seed: (json["seed"] as? Int).flatMap { UInt32(exactly: $0) },
         clipSkip: Int32(json["clipSkip"] as? Int ?? 1),
         loras: loras,
         controls: controls,
@@ -182,7 +182,7 @@ private func referenceConfigFromJSON(_ jsonString: String) -> DrawThingsConfigur
         faceRestoration: faceRestoration,
         clipLText: json["clipLText"] as? String,
         openClipGText: json["openClipGText"] as? String,
-        seedMode: Int32(json["seedMode"] as? Int ?? 2)
+        seedMode: SeedMode(rawValue: Int8(json["seedMode"] as? Int ?? 2)) ?? .scalealike
     )
 }
 

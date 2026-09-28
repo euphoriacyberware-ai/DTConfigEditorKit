@@ -10,8 +10,8 @@ public enum ModelFamilyDetector {
         "numFrames", "causalInference", "causalInferencePad", "causalInferenceEnabled",
     ]
 
-    public static func detect(from modelName: String) -> LatentModelFamily {
-        LatentModelFamily.detect(from: modelName)
+    public static func detect(from modelName: String) -> ModelFamily {
+        ModelFamily.detect(from: modelName)
     }
 
     /// Returns field names that are inert for the given model.
