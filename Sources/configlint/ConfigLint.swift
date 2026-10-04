@@ -207,7 +207,7 @@ struct ConfigLint: ParsableCommand {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(diagnostics)
-        let json = String(data: data, encoding: .utf8)! + "\n"
+        let json = String(decoding: data, as: UTF8.self) + "\n"
 
         let existing = try? String(contentsOfFile: expectedPath, encoding: .utf8)
         if existing == json {

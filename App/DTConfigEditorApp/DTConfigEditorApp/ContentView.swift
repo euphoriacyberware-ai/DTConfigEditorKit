@@ -21,15 +21,6 @@ extension FocusedValues {
 struct ContentView: View {
     @Bindable var appState: AppState
     @State private var showConnectionSheet = false
-    @State private var showDiscardAlert = false
-    @State private var pendingAction: PendingAction?
-
-    enum PendingAction {
-        case paste
-        case revert
-        case newDocument
-        case openURL(URL)
-    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -42,11 +33,27 @@ struct ContentView: View {
         .navigationSubtitle(appState.emissionStyleChoice.rawValue)
         #endif
         .toolbar { toolbarContent }
-        .alert("Unsaved Changes", isPresented: $showDiscardAlert) {
-            Button("Discard", role: .destructive) { performPendingAction() }
-            Button("Cancel", role: .cancel) { pendingAction = nil }
+        .alert("Unsaved Changes", isPresented: Binding(
+            get: { appState.pendingAction != nil },
+            set: { if !$0 { appState.pendingAction = nil } }
+        )) {
+            #if os(macOS)
+            if appState.canSaveBeforePendingAction {
+                Button("Save") { appState.resolvePendingAction(save: true) }
+            }
+            #endif
+            Button("Discard", role: .destructive) { appState.resolvePendingAction(save: false) }
+            Button("Cancel", role: .cancel) { appState.pendingAction = nil }
         } message: {
-            Text("You have unsaved changes. Discard them?")
+            Text("Do you want to save the changes to \(appState.documentURL?.lastPathComponent ?? "Untitled")?")
+        }
+        .alert("Error", isPresented: Binding(
+            get: { appState.alertMessage != nil },
+            set: { if !$0 { appState.alertMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(appState.alertMessage ?? "")
         }
         .sheet(isPresented: $showConnectionSheet) {
             ConnectionView(appState: appState)
@@ -66,39 +73,35 @@ struct ContentView: View {
     private var editorArea: some View {
         #if os(macOS)
         HStack(spacing: 0) {
-            ConfigTextView(model: appState.model)
+            ConfigTextView(model: appState.model, actions: appState.editor)
 
             if appState.showProblemsList {
                 Divider()
-                ProblemsListView(
-                    diagnostics: appState.filteredDiagnostics,
-                    text: appState.model.text,
-                    onSelect: { _ in },
-                    onApplyFixIt: { fixIt in
-                        appState.model.text = FixItApplicator.apply(fixIt, to: appState.model.text)
-                    }
-                )
-                .frame(width: 320)
+                problemsList
+                    .frame(width: 320)
             }
         }
         #else
         VStack(spacing: 0) {
-            ConfigTextView(model: appState.model)
+            ConfigTextView(model: appState.model, actions: appState.editor)
 
             if appState.showProblemsList {
                 Divider()
-                ProblemsListView(
-                    diagnostics: appState.filteredDiagnostics,
-                    text: appState.model.text,
-                    onSelect: { _ in },
-                    onApplyFixIt: { fixIt in
-                        appState.model.text = FixItApplicator.apply(fixIt, to: appState.model.text)
-                    }
-                )
-                .frame(maxHeight: 250)
+                problemsList
+                    .frame(maxHeight: 250)
             }
         }
         #endif
+    }
+
+    private var problemsList: some View {
+        ProblemsListView(
+            diagnostics: appState.model.diagnostics,
+            text: appState.model.text,
+            showInert: $appState.showInertDiagnostics,
+            onSelect: { appState.reveal($0) },
+            onApplyFixIt: { appState.applyFixIt($0) }
+        )
     }
 
     // MARK: - Toolbar
@@ -108,7 +111,7 @@ struct ContentView: View {
         #if os(macOS)
         ToolbarItemGroup(placement: .primaryAction) {
             Button {
-                guardedAction(.paste)
+                appState.request(.paste)
             } label: {
                 Label("Paste from Clipboard", systemImage: "doc.on.clipboard")
             }
@@ -129,8 +132,8 @@ struct ContentView: View {
             Button {
                 appState.showProblemsList.toggle()
             } label: {
-                Label("Problems", systemImage: appState.showProblemsList
-                      ? "sidebar.trailing" : "sidebar.trailing")
+                Label(appState.showProblemsList ? "Hide Problems" : "Show Problems",
+                      systemImage: appState.showProblemsList ? "sidebar.trailing" : "sidebar.right")
             }
             .help("Toggle problems list")
 
@@ -145,7 +148,7 @@ struct ContentView: View {
         ToolbarItem(placement: .primaryAction) {
             Menu {
                 Button("Paste from Clipboard", systemImage: "doc.on.clipboard") {
-                    guardedAction(.paste)
+                    appState.request(.paste)
                 }
                 Button("Copy Document", systemImage: "doc.on.doc") {
                     appState.copyToClipboard()
@@ -189,36 +192,6 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Discard confirmation
-
-    private func guardedAction(_ action: PendingAction) {
-        if appState.isDirty {
-            pendingAction = action
-            showDiscardAlert = true
-        } else {
-            perform(action)
-        }
-    }
-
-    private func performPendingAction() {
-        guard let action = pendingAction else { return }
-        pendingAction = nil
-        perform(action)
-    }
-
-    private func perform(_ action: PendingAction) {
-        switch action {
-        case .paste:
-            appState.pasteFromClipboard()
-        case .revert:
-            appState.revert()
-        case .newDocument:
-            appState.newDocument()
-        case .openURL(let url):
-            appState.readAndLoad(url: url)
-        }
-    }
-
     // MARK: - Drag and drop
 
     private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
@@ -227,7 +200,7 @@ struct ContentView: View {
             guard let data = data as? Data,
                   let url = URL(dataRepresentation: data, relativeTo: nil) else { return }
             Task { @MainActor in
-                guardedAction(.openURL(url))
+                appState.request(.open(url))
             }
         }
         return true

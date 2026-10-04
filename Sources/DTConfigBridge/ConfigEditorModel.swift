@@ -35,36 +35,32 @@ public final class ConfigEditorModel: ConfigTextEditing {
     // MARK: - Surgical edit
 
     /// Replace a single top-level key's value in the text, touching only that key's byte span.
-    /// Falls back to full re-emission when the document is unparseable.
+    /// Falls back to full re-emission when the document has no root object.
     public func set(_ key: String, to value: JSONValue) {
         guard let result = parseResult,
-              let objectNode = ModelFamilyDetector.findRootObject(result.root)
+              let objectNode = result.findRootObject()
         else {
-            // Unparseable: fall back to full re-emission
             if var config = configuration {
-                applyToConfig(&config, key: key, value: value)
+                let member = JSONValue.object([(key: key, value: value)])
+                try? config.mergeJSON(ConfigurationInterop.serializeValue(member))
                 text = ConfigurationInterop.text(
                     from: config, style: .full, unknownKeys: unknownKeys)
             }
             return
         }
 
-        // Find existing member
+        // Replace the value of an existing member
         for member in objectNode.children
             where member.kind == .member && member.children.count >= 2
         {
-            let keyNode = member.children[0]
             let valueNode = member.children[1]
-            guard let memberKey = ModelFamilyDetector.extractKey(keyNode, tokens: result.tokens),
-                  memberKey == key,
+            guard result.extractKey(from: member.children[0]) == key,
                   valueNode.kind != .error
             else { continue }
 
-            // Replace value byte range
-            let serialized = ConfigurationInterop.serializeValue(value)
             var utf8 = Array(text.utf8)
-            let range = valueNode.byteRange
-            utf8.replaceSubrange(range, with: Array(serialized.utf8))
+            let range = valueNode.byteRange.clamped(to: 0..<utf8.count)
+            utf8.replaceSubrange(range, with: Array(ConfigurationInterop.serializeValue(value).utf8))
             text = String(decoding: utf8, as: UTF8.self)
             return
         }
@@ -139,37 +135,12 @@ public final class ConfigEditorModel: ConfigTextEditing {
         guard let insertPos = braceBytePos else { return }
 
         let hasMembers = objectNode.children.contains { $0.kind == .member }
-        let serialized = ConfigurationInterop.serializeValue(value)
-        let insertion: String
-        if hasMembers {
-            insertion = ", \"\(key)\": \(serialized)"
-        } else {
-            insertion = "\"\(key)\": \(serialized)"
-        }
+        let member = "\(JSONString.quote(key)): \(ConfigurationInterop.serializeValue(value))"
+        let insertion = hasMembers ? ", \(member)" : member
 
         var utf8 = Array(text.utf8)
+        guard insertPos <= utf8.count else { return }
         utf8.insert(contentsOf: Array(insertion.utf8), at: insertPos)
         text = String(decoding: utf8, as: UTF8.self)
-    }
-
-    private func applyToConfig(
-        _ config: inout DrawThingsConfiguration, key: String, value: JSONValue
-    ) {
-        switch key {
-        case "width": if let v = value.asInt32 { config.width = v }
-        case "height": if let v = value.asInt32 { config.height = v }
-        case "steps": if let v = value.asInt32 { config.steps = v }
-        case "model": if let v = value.asString { config.model = v }
-        case "guidanceScale": if let v = value.asFloat { config.guidanceScale = v }
-        case "seed":
-            config.seed = value.asSeed
-        case "shift": if let v = value.asFloat { config.shift = v }
-        case "strength": if let v = value.asFloat { config.strength = v }
-        case "sampler":
-            if let raw = value.asInt32, let s = SamplerType(rawValue: Int8(raw)) {
-                config.sampler = s
-            }
-        default: break // other fields can be added as needed
-        }
     }
 }

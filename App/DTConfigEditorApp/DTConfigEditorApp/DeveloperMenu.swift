@@ -1,7 +1,6 @@
 #if DEBUG
 import DTConfigEditorKit
 import DTConfigBridge
-import DrawThingsClient
 import SwiftUI
 
 // MARK: - Notifications for triggering developer sheets
@@ -25,6 +24,10 @@ private let fixtures: [FixtureItem] = [
     FixtureItem(id: "wan22", name: "Wan 2.2 i2v", filename: "DT_wan2.2_i2v.json"),
     FixtureItem(id: "control", name: "Control Example", filename: "DT_Control_Example.json"),
     FixtureItem(id: "future", name: "Future Key", filename: "DT_future_key.json"),
+    FixtureItem(id: "h3-copy", name: "H3 Turbo (app copy)", filename: "DT_h3_turbo_copy.json"),
+    FixtureItem(id: "h3-full", name: "H3 Turbo (full)", filename: "DT_h3_turbo_full.json"),
+    FixtureItem(id: "krea-lora-copy", name: "Krea 2 + LoRA (app copy)", filename: "DT_krea2_lora_copy.json"),
+    FixtureItem(id: "krea-lora-full", name: "Krea 2 + LoRA (full)", filename: "DT_krea2_lora_full.json"),
 ]
 
 private var fixturesDirectory: URL {
@@ -36,9 +39,11 @@ private var fixturesDirectory: URL {
         .appendingPathComponent("Tests/Fixtures")
 }
 
-func loadFixture(_ fixture: FixtureItem) -> String? {
+/// Reads a fixture from the source tree. Needs a build whose sandbox can read the
+/// repository (or no sandbox); otherwise this throws.
+func loadFixture(_ fixture: FixtureItem) throws -> String {
     let url = fixturesDirectory.appendingPathComponent(fixture.filename)
-    return try? String(contentsOf: url, encoding: .utf8)
+    return try String(contentsOf: url, encoding: .utf8)
 }
 
 // MARK: - Developer Menu Commands (macOS)
@@ -51,8 +56,10 @@ struct DeveloperCommands: Commands {
             Menu("Load Fixture") {
                 ForEach(fixtures) { fixture in
                     Button(fixture.name) {
-                        if let text = loadFixture(fixture) {
-                            appState?.loadText(text)
+                        do {
+                            appState?.request(.load(try loadFixture(fixture)))
+                        } catch {
+                            appState?.alertMessage = "Couldn't load fixture \(fixture.filename): \(error.localizedDescription)"
                         }
                     }
                 }
@@ -84,8 +91,8 @@ struct DeveloperCommands: Commands {
         let diags = appState.model.diagnostics
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        guard let data = try? encoder.encode(diags),
-              let json = String(data: data, encoding: .utf8) else { return }
+        guard let data = try? encoder.encode(diags) else { return }
+        let json = String(decoding: data, as: UTF8.self)
         #if os(macOS)
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(json, forType: .string)

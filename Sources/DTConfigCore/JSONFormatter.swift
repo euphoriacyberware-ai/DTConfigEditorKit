@@ -255,18 +255,10 @@ public enum JSONFormatter {
         let keyNode = member.children[0]
         for i in keyNode.tokenRange where i < tokens.count {
             if tokens[i].kind == .string {
-                return decodeKey(tokens[i].text)
+                return JSONString.decode(tokens[i].text)
             }
         }
         return ""
-    }
-
-    private static func decodeKey(_ raw: String) -> String {
-        guard raw.count >= 2, raw.hasPrefix("\"") else { return raw }
-        if raw.hasSuffix("\"") {
-            return String(raw.dropFirst().dropLast())
-        }
-        return String(raw.dropFirst())
     }
 
     private static func slice(_ bytes: [UInt8], _ range: Range<Int>) -> String {

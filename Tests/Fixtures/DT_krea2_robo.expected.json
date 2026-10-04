@@ -1,14 +1,14 @@
 [
   {
-    "code" : "unknown-key",
+    "code" : "cross-field.tea-cache-disabled",
     "fixIts" : [
 
     ],
-    "message" : "Unknown key \"id\"; may be from a newer Draw Things version",
+    "message" : "teaCacheThreshold is set but teaCache is disabled",
     "range" : [
-      753,
-      757
+      2078,
+      2081
     ],
-    "severity" : "warning"
+    "severity" : "inert"
   }
 ]

@@ -309,7 +309,7 @@ public enum CompletionEngine {
 
         case .string:
             if phase == .expectKey {
-                let key = decodeString(token.text)
+                let key = JSONString.decode(token.text)
                 let idx = stack.count - 1
                 if idx >= 0 && stack[idx].isObject {
                     var entry = stack[idx]
@@ -492,14 +492,6 @@ public enum CompletionEngine {
         let n = min(bytes, utf8.count)
         guard n > 0 else { return "" }
         return String(decoding: utf8[0..<n], as: UTF8.self)
-    }
-
-    private static func decodeString(_ raw: String) -> String {
-        guard raw.count >= 2, raw.hasPrefix("\"") else { return raw }
-        if raw.hasSuffix("\"") {
-            return String(raw.dropFirst().dropLast())
-        }
-        return String(raw.dropFirst())
     }
 
     private static func typeLabel(for type: FieldType) -> String {

@@ -9,7 +9,7 @@
       820,
       824
     ],
-    "severity" : "warning"
+    "severity" : "inert"
   },
   {
     "code" : "cross-field.hires-fix-disabled",
@@ -21,19 +21,7 @@
       865,
       868
     ],
-    "severity" : "warning"
-  },
-  {
-    "code" : "unknown-key",
-    "fixIts" : [
-
-    ],
-    "message" : "Unknown key \"id\"; may be from a newer Draw Things version",
-    "range" : [
-      869,
-      873
-    ],
-    "severity" : "warning"
+    "severity" : "inert"
   },
   {
     "code" : "cross-field.tea-cache-disabled",
@@ -45,6 +33,6 @@
       2041,
       2044
     ],
-    "severity" : "warning"
+    "severity" : "inert"
   }
 ]

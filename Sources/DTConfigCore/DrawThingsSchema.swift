@@ -27,12 +27,11 @@ public enum DrawThingsSchema {
                 name: "LoRAMode",
                 strings: ["all", "base", "refiner"],
                 intRange: 0...2),
-            jsonDefault: .int("0"),
+            jsonDefault: .string("all"),
             label: "Mode"),
     ])
 
     public static let controlSchema = ObjectSchema(fields: [
-        // Core fields parsed by ConfigfromJSON
         "file": FieldSchema(
             type: .string, label: "File", domainPath: .controlFile),
         "weight": FieldSchema(
@@ -46,13 +45,12 @@ public enum DrawThingsSchema {
                 name: "ControlMode",
                 strings: ["balanced", "prompt", "control"],
                 intRange: 0...2),
-            jsonDefault: .int("0"),
+            jsonDefault: .string("balanced"),
             label: "Control Importance"),
-        // Extra FlatBuffer fields exported by Draw Things but not parsed by ConfigfromJSON
         "noPrompt": FieldSchema(
             type: .bool, jsonDefault: .bool(false)),
         "globalAveragePooling": FieldSchema(
-            type: .bool, jsonDefault: .bool(true)),
+            type: .bool, jsonDefault: .bool(false)),
         "downSamplingRate": FieldSchema(
             type: .float, jsonDefault: .float("1.0")),
         "targetBlocks": FieldSchema(
@@ -65,6 +63,9 @@ public enum DrawThingsSchema {
 
     public static let root = ObjectSchema(fields: [
         // --- Metadata ---
+        "id": FieldSchema(
+            type: .int, jsonDefault: .int("0"),
+            doc: "Written by Draw Things; always 0"),
         "name": FieldSchema(
             type: .nullableString, jsonDefault: .null, label: "Configuration Name"),
 
@@ -76,20 +77,22 @@ public enum DrawThingsSchema {
         "height": FieldSchema(
             type: .int, jsonDefault: .int("1024"), multipleOf64: true, label: "Height"),
         "steps": FieldSchema(
-            type: .int, jsonDefault: .int("20"), label: "Steps"),
+            type: .int, jsonDefault: .int("8"), label: "Steps"),
         "sampler": FieldSchema(
             type: .intEnum(name: "SamplerType", range: 0...19, labels: samplerLabels),
-            jsonDefault: .int("0"),
+            jsonDefault: .int("17"),
             label: "Sampler"),
         "guidanceScale": FieldSchema(
-            type: .float, jsonDefault: .float("7.0"), label: "Guidance Scale"),
+            type: .float, jsonDefault: .float("1.0"), label: "Guidance Scale"),
         "seed": FieldSchema(
-            type: .nullableInt, jsonDefault: .null, label: "Seed",
+            type: .nullableInt, jsonDefault: .int("-1"), label: "Seed",
             doc: "-1 or null means random"),
         "clipSkip": FieldSchema(
             type: .int, jsonDefault: .int("1"), label: "CLIP Skip"),
         "shift": FieldSchema(
-            type: .float, jsonDefault: .float("1.0"), label: "Shift"),
+            type: .float, jsonDefault: .float("3.0"), label: "Shift"),
+        "shiftForAudio": FieldSchema(
+            type: .float, jsonDefault: .float("3.0"), label: "Audio Shift"),
         "strength": FieldSchema(
             type: .float, jsonDefault: .float("1.0"), label: "Strength"),
 
@@ -119,10 +122,12 @@ public enum DrawThingsSchema {
                 name: "CompressionMethod",
                 strings: ["disabled", "h264", "h265", "jpeg"],
                 intRange: 0...3),
-            jsonDefault: .int("0"),
+            jsonDefault: .string("disabled"),
             label: "Compression Artifacts"),
         "compressionArtifactsQuality": FieldSchema(
             type: .float, jsonDefault: .float("43.1")),
+        "expandPromptToJson": FieldSchema(
+            type: .bool, jsonDefault: .bool(false)),
 
         // --- Mask / Inpaint ---
         "maskBlur": FieldSchema(
@@ -219,10 +224,10 @@ public enum DrawThingsSchema {
         "hiresFix": FieldSchema(
             type: .bool, jsonDefault: .bool(false), label: "HiRes Fix"),
         "hiresFixWidth": FieldSchema(
-            type: .int, jsonDefault: .int("1024"), multipleOf64: true,
+            type: .int, jsonDefault: .int("0"), multipleOf64: true,
             doc: "0 is a valid sentinel meaning 'use main width'"),
         "hiresFixHeight": FieldSchema(
-            type: .int, jsonDefault: .int("1024"), multipleOf64: true,
+            type: .int, jsonDefault: .int("0"), multipleOf64: true,
             doc: "0 is a valid sentinel meaning 'use main height'"),
         "hiresFixStrength": FieldSchema(
             type: .float, jsonDefault: .float("0.7")),
@@ -244,15 +249,25 @@ public enum DrawThingsSchema {
             type: .int, jsonDefault: .int("-1"),
             doc: "-1 is a valid sentinel"),
         "teaCacheThreshold": FieldSchema(
-            type: .float, jsonDefault: .float("0.2")),
+            type: .float, jsonDefault: .float("0.06")),
         "teaCacheMaxSkipSteps": FieldSchema(
             type: .int, jsonDefault: .int("3")),
 
+        // --- SOL Attention ---
+        "usesSolAttention": FieldSchema(
+            type: .bool, jsonDefault: .bool(false)),
+        "solAttentionStart": FieldSchema(
+            type: .int, jsonDefault: .int("2")),
+        "solAttentionTau": FieldSchema(
+            type: .float, jsonDefault: .float("0.5")),
+
         // --- Causal Inference ---
         "causalInferenceEnabled": FieldSchema(
-            type: .bool, jsonDefault: .bool(false)),
+            type: .bool,
+            doc: "Deprecated: not read by Draw Things; causalInference > 0 enables it"),
         "causalInference": FieldSchema(
-            type: .int, jsonDefault: .int("0")),
+            type: .int, jsonDefault: .int("0"),
+            doc: "0 means off"),
         "causalInferencePad": FieldSchema(
             type: .int, jsonDefault: .int("0")),
 
@@ -300,12 +315,12 @@ public enum DrawThingsSchema {
             jsonDefault: .array([]),
             label: "Controls"),
 
-        // --- Color Calibration (exported by DT, not parsed by ConfigfromJSON) ---
+        // --- Color Calibration ---
         "colorCalibration": FieldSchema(
             type: .stringOrIntEnum(
                 name: "ColorCalibration",
                 strings: ["none", "disabled", "lab"],
                 intRange: 0...1),
-            jsonDefault: .int("0")),
+            jsonDefault: .string("none")),
     ])
 }

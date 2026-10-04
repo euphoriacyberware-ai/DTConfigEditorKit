@@ -1,13 +1,13 @@
 {
-  "originHash" : "791034afa4890328577b499b74a7230fc08e24a60a8339b6711f62c5e5bb2003",
+  "originHash" : "e520da5c7bf2749c1c3bdd9031be699693005933884ea8cdf27e98fde7135e73",
   "pins" : [
     {
       "identity" : "drawthings-swift",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/euphoriacyberware-ai/DrawThings-Swift.git",
       "state" : {
-        "branch" : "v2",
-        "revision" : "bc58afcc8698980ce1f1474f16d8a2649d2e1464"
+        "revision" : "e1cef4ba4f6201cd538c78fabb5111bc77a2185e",
+        "version" : "2.2.0"
       }
     },
     {

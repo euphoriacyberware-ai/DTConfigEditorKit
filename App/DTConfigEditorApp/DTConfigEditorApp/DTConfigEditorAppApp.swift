@@ -33,23 +33,19 @@ struct DTConfigEditorAppApp: App {
     private var fileCommands: some Commands {
         CommandGroup(replacing: .newItem) {
             Button("New") {
-                guardedMenuAction(.newDocument)
+                appState.request(.newDocument)
             }
             .keyboardShortcut("n")
 
             #if os(macOS)
             Button("Open...") {
-                if appState.isDirty {
-                    guardedMenuAction(.openViaPanel)
-                } else {
-                    appState.openFile()
-                }
+                appState.request(.open(nil))
             }
             .keyboardShortcut("o")
             #endif
 
             Button("Paste from Clipboard") {
-                guardedMenuAction(.paste)
+                appState.request(.paste)
             }
             .keyboardShortcut("v", modifiers: [.command, .shift])
 
@@ -71,7 +67,7 @@ struct DTConfigEditorAppApp: App {
             Divider()
 
             Button("Revert to Saved") {
-                guardedMenuAction(.revert)
+                appState.request(.revert)
             }
             .disabled(!appState.isDirty)
         }
@@ -121,36 +117,6 @@ struct DTConfigEditorAppApp: App {
         CommandGroup(after: .toolbar) {
             Toggle("Show Problems", isOn: $appState.showProblemsList)
                 .keyboardShortcut("m", modifiers: [.command, .shift])
-        }
-    }
-
-    // MARK: - Guarded menu actions
-
-    private enum MenuAction {
-        case newDocument
-        case paste
-        case revert
-        case openViaPanel
-    }
-
-    private func guardedMenuAction(_ action: MenuAction) {
-        // Note: alerts from commands are limited in SwiftUI.
-        // For v1, perform the action directly.
-        performMenuAction(action)
-    }
-
-    private func performMenuAction(_ action: MenuAction) {
-        switch action {
-        case .newDocument:
-            appState.newDocument()
-        case .paste:
-            appState.pasteFromClipboard()
-        case .revert:
-            appState.revert()
-        case .openViaPanel:
-            #if os(macOS)
-            appState.openFile()
-            #endif
         }
     }
 }

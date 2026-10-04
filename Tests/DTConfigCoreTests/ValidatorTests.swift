@@ -56,13 +56,11 @@ struct ValidatorTests {
 
     // MARK: - Fixture: expected warnings
 
-    @Test("krea2_robo: unknown key 'id' warning")
+    @Test("krea2_robo: 'id' is a known key")
     func krea2RoboWarnings() throws {
         let diagnostics = try validateFixture("DT_krea2_robo.json")
-        let warnings = diagnostics.filter { $0.severity == .warning }
-        let unknownKeys = warnings.filter { $0.code == "unknown-key" }
-        #expect(unknownKeys.count == 1)
-        #expect(unknownKeys.first?.message.contains("id") == true)
+        let unknownKeys = diagnostics.filter { $0.code == "unknown-key" }
+        #expect(unknownKeys.isEmpty)
     }
 
     @Test("krea2_robo_min: empty upscaler warning")
@@ -73,34 +71,29 @@ struct ValidatorTests {
         #expect(upscalerWarnings.count == 1)
     }
 
-    @Test("wan2.2_i2v: unknown 'id' + hiresFix warnings")
+    @Test("wan2.2_i2v: hiresFix sizes are inert while hiresFix is off")
     func wan22Warnings() throws {
         let diagnostics = try validateFixture("DT_wan2.2_i2v.json")
-        let warnings = diagnostics.filter { $0.severity == .warning }
+        #expect(diagnostics.filter { $0.code == "unknown-key" }.isEmpty)
 
-        let unknownKeys = warnings.filter { $0.code == "unknown-key" }
-        #expect(unknownKeys.count == 1)
-        #expect(unknownKeys.first?.message.contains("id") == true)
-
-        let hiresWarnings = warnings.filter { $0.code == "cross-field.hires-fix-disabled" }
-        #expect(hiresWarnings.count == 2)
+        let hires = diagnostics.filter { $0.code == "cross-field.hires-fix-disabled" }
+        #expect(hires.count == 2)
+        #expect(hires.allSatisfy { $0.severity == .inert })
     }
 
-    @Test("Control_Example: unknown 'id' + hiresFix + teaCache warnings")
+    @Test("Control_Example: hiresFix + teaCache settings are inert while disabled")
     func controlExampleWarnings() throws {
         let diagnostics = try validateFixture("DT_Control_Example.json")
-        let warnings = diagnostics.filter { $0.severity == .warning }
+        #expect(diagnostics.filter { $0.code == "unknown-key" }.isEmpty)
 
-        let unknownKeys = warnings.filter { $0.code == "unknown-key" }
-        #expect(unknownKeys.count == 1)
-        #expect(unknownKeys.first?.message.contains("id") == true)
+        let hires = diagnostics.filter { $0.code == "cross-field.hires-fix-disabled" }
+        #expect(hires.count == 2)
+        #expect(hires.allSatisfy { $0.severity == .inert })
 
-        let hiresWarnings = warnings.filter { $0.code == "cross-field.hires-fix-disabled" }
-        #expect(hiresWarnings.count == 2)
-
-        let teaCacheWarnings = warnings.filter { $0.code == "cross-field.tea-cache-disabled" }
-        #expect(teaCacheWarnings.count == 1)
-        #expect(teaCacheWarnings.first?.message.contains("teaCacheThreshold") == true)
+        let teaCache = diagnostics.filter { $0.code == "cross-field.tea-cache-disabled" }
+        #expect(teaCache.count == 1)
+        #expect(teaCache.first?.message.contains("teaCacheThreshold") == true)
+        #expect(teaCache.first?.severity == .inert)
     }
 
     @Test("future_key: unknown key warning for futureFeatureFlag")

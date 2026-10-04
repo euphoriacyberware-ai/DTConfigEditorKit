@@ -18,7 +18,7 @@ extension ParseResult {
     public func extractKey(from keyNode: CSTNode) -> String? {
         for i in keyNode.tokenRange where i < tokens.count {
             if tokens[i].kind == .string {
-                return decodeKey(tokens[i].text)
+                return JSONString.decode(tokens[i].text)
             }
         }
         return nil
@@ -68,15 +68,5 @@ extension ParseResult {
             let prevEnd = members[idx - 1].byteRange.upperBound
             return prevEnd..<memberRange.upperBound
         }
-    }
-
-    // MARK: - Private
-
-    private func decodeKey(_ raw: String) -> String {
-        guard raw.count >= 2, raw.hasPrefix("\"") else { return raw }
-        if raw.hasSuffix("\"") {
-            return String(raw.dropFirst().dropLast())
-        }
-        return String(raw.dropFirst())
     }
 }

@@ -11,7 +11,7 @@ import DrawThingsClient
 ///
 /// Degrades gracefully: when `service` is nil or the server is unreachable, behaves
 /// identically to `StaticValueDomainProvider`.
-public final class ServerValueDomainProvider: ValueDomainProvider, @unchecked Sendable {
+public final class ServerValueDomainProvider: ValueDomainProvider, Sendable {
     private let service: DrawThingsService?
 
     public init(service: DrawThingsService? = nil) {

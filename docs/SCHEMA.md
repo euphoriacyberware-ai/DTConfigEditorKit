@@ -1,18 +1,21 @@
 # Draw Things Configuration JSON Schema Reference
 
-Derived from four upstream sources. When sources conflict, priority order is:
+Derived from [DrawThings-Swift](https://github.com/euphoriacyberware-ai/DrawThings-Swift) 2.2 and real Draw Things exports. When sources conflict, priority order is:
 
-1. `ConfigfromJSON.swift` — the behavioural contract (JSON parser)
-2. `Configuration.swift` — struct definition, init defaults, `didSet` constraints
-3. `config_generated.swift` — FlatBuffers enums (canonical enum definitions)
-4. Fixture files — real Draw Things exports
+1. `DrawThingsConfiguration+JSON.swift` — the `Codable` conformance, which is the behavioural contract. The editor decodes and encodes through it (`ConfigurationInterop`).
+2. `DrawThingsConfiguration.swift` — struct definition and init defaults (also the defaults for absent JSON keys)
+3. `DrawThingsConfiguration+FlatBuffer.swift` — `validate()` constraints
+4. `config_generated.swift` — FlatBuffers enums (canonical enum definitions)
+5. Fixture files — real Draw Things exports
+
+In 2.x, the JSON default and the struct default are the same thing: an absent key takes the `DrawThingsConfiguration()` value. The two default columns below are kept for comparison with older notes; `DTConfigBridgeTests` ("Schema sync") fails if `DrawThingsSchema` disagrees with the client.
 
 ---
 
 ## 1. Top-Level Field Inventory
 
 Legend:
-- **JSON default**: value used by `ConfigfromJSON.swift` when key is absent (`??` value)
+- **JSON default**: value an absent key decodes to (as `DrawThingsConfiguration.toJSON()` writes it)
 - **Struct default**: value in `DrawThingsConfiguration.init` parameter default
 - **Diff**: marked when JSON parser default differs from struct init default
 - **Fixture presence**: K=krea-full, M=krea-min, W=wan22, C=control-example
@@ -21,16 +24,16 @@ Legend:
 
 | JSON Key | Swift Type | Optional | JSON Default | Struct Default | Diff | K | M | W | Constraints |
 |----------|-----------|----------|-------------|---------------|------|---|---|---|-------------|
-| `model` | `String` | No | *(required)* | `"sd_xl_base_1.0.safetensors"` | -- | Y | Y | Y | CONFIRMED: must be non-empty; JSON parser returns nil if missing/empty |
-| `width` | `Int32` | No | `1024` | `512` | YES | Y | Y | Y | CONFIRMED: `didSet` enforces multiple of 64 |
-| `height` | `Int32` | No | `1024` | `512` | YES | Y | Y | Y | CONFIRMED: `didSet` enforces multiple of 64 |
-| `steps` | `Int32` | No | `20` | `20` | -- | Y | Y | Y | |
-| `sampler` | `SamplerType` (Int8 enum) | No | `.dpmpp2mkarras` (0) | `.dpmpp2mkarras` (0) | -- | Y | Y | Y | CONFIRMED: int 0..19, maps to SamplerType enum |
-| `guidanceScale` | `Float` | No | `7.0` | `7.0` | -- | Y | Y | Y | CONFIRMED: range 0 to 50.0 |
-| `seed` | `Int64?` | Yes | `nil` | `nil` | -- | Y | Y | Y | CONFIRMED: `-1` means random; `nil` means random; JSON parser treats absent as nil |
+| `model` | `String` | No | *(required)* | `"z_image_turbo_1.0_q8p.ckpt"` | -- | Y | Y | Y | CONFIRMED: must be non-empty (`validate()`); the editor treats a document without it as invalid |
+| `width` | `Int32` | No | `1024` | `1024` | -- | Y | Y | Y | CONFIRMED: rounded to a multiple of 64 when encoded |
+| `height` | `Int32` | No | `1024` | `1024` | -- | Y | Y | Y | CONFIRMED: rounded to a multiple of 64 when encoded |
+| `steps` | `Int32` | No | `8` | `8` | -- | Y | Y | Y | |
+| `sampler` | `SamplerType` (Int8 enum) | No | `17` (`.unipctrailing`) | `17` (`.unipctrailing`) | -- | Y | Y | Y | CONFIRMED: int 0..19, maps to SamplerType enum |
+| `guidanceScale` | `Float` | No | `1` | `1` | -- | Y | Y | Y | CONFIRMED: range 0 to 50.0 |
+| `seed` | `UInt32?` | Yes | `-1` (random) | `-1` (random) | -- | Y | Y | Y | CONFIRMED: `-1` (or any value outside `0...UInt32.max`, or absent) means random; written as `-1` |
 | `clipSkip` | `Int32` | No | `1` | `1` | -- | Y | -- | Y | |
-| `shift` | `Float` | No | `1.0` | `1.0` | -- | Y | Y | Y | UI range 0.10..8.00; JSON accepts higher values with unknown upper limit |
-| `strength` | `Float` | No | `1.0` | `1.0` | -- | Y | Y | Y | |
+| `shift` | `Float` | No | `3` | `3` | -- | Y | Y | Y | UI range 0.10..8.00; JSON accepts higher values with unknown upper limit |
+| `strength` | `Float` | No | `1` | `1` | -- | Y | Y | Y | |
 
 ### Batch Parameters
 
@@ -44,7 +47,7 @@ Legend:
 | JSON Key | Swift Type | Optional | JSON Default | Struct Default | Diff | K | M | W | Constraints |
 |----------|-----------|----------|-------------|---------------|------|---|---|---|-------------|
 | `imageGuidanceScale` | `Float` | No | `1.5` | `1.5` | -- | Y | -- | Y | |
-| `clipWeight` | `Float` | No | `1.0` | `1.0` | -- | Y | -- | Y | |
+| `clipWeight` | `Float` | No | `1` | `1` | -- | Y | -- | Y | |
 | `guidanceEmbed` | `Float` | No | `3.5` | `3.5` | -- | Y | -- | Y | |
 | `speedUpWithGuidanceEmbed` | `Bool` | No | `true` | `true` | -- | Y | -- | Y | |
 | `cfgZeroStar` | `Bool` | No | `false` | `false` | -- | Y | Y | Y | |
@@ -54,7 +57,7 @@ Legend:
 
 | JSON Key | Swift Type | Optional | JSON Default | Struct Default | Diff | K | M | W | Constraints |
 |----------|-----------|----------|-------------|---------------|------|---|---|---|-------------|
-| `compressionArtifacts` | `CompressionMethod` (string/int) | No | `.disabled` (0) | `.disabled` (0) | -- | Y | -- | Y | CONFIRMED: JSON accepts both string (`"disabled"`, `"h264"`, `"h265"`, `"jpeg"`) and int (0..3); `"webp"` in example comment is outdated and not a valid value |
+| `compressionArtifacts` | `CompressionMethod` (string/int) | No | `"disabled"` | `"disabled"` | -- | Y | -- | Y | CONFIRMED: JSON accepts both string (`"disabled"`, `"h264"`, `"h265"`, `"jpeg"`) and int (0..3); `"webp"` in example comment is outdated and not a valid value |
 | `compressionArtifactsQuality` | `Float` | No | `43.1` | `43.1` | -- | Y | -- | Y | |
 
 ### Mask / Inpaint Parameters
@@ -69,9 +72,9 @@ Legend:
 
 | JSON Key | Swift Type | Optional | JSON Default | Struct Default | Diff | K | M | W | Constraints |
 |----------|-----------|----------|-------------|---------------|------|---|---|---|-------------|
-| `sharpness` | `Float` | No | `0.0` | `0.0` | -- | Y | Y | Y | |
+| `sharpness` | `Float` | No | `0` | `0` | -- | Y | Y | Y | |
 | `stochasticSamplingGamma` | `Float` | No | `0.3` | `0.3` | -- | Y | -- | Y | |
-| `aestheticScore` | `Float` | No | `6.0` | `6.0` | -- | Y | -- | Y | |
+| `aestheticScore` | `Float` | No | `6` | `6` | -- | Y | -- | Y | |
 | `negativeAestheticScore` | `Float` | No | `2.5` | `2.5` | -- | Y | -- | Y | |
 
 ### Image Prior Parameters
@@ -98,14 +101,14 @@ Legend:
 
 | JSON Key | Swift Type | Optional | JSON Default | Struct Default | Diff | K | M | W | Constraints |
 |----------|-----------|----------|-------------|---------------|------|---|---|---|-------------|
-| `upscaler` | `String?` | Yes | `nil` | `nil` | -- | Y | -- | Y | CONFIRMED: `""` and `null` both mean "none"; empty string may trigger default 4x upscaler |
+| `upscaler` | `String?` | Yes | `null` | `null` | -- | Y | -- | Y | CONFIRMED: `""` and `null` both mean "none"; empty string may trigger default 4x upscaler |
 | `upscalerScaleFactor` | `Int32` | No | `0` | `0` | -- | Y | -- | Y | |
 
 ### Text Encoder Parameters
 
 | JSON Key | Swift Type | Optional | JSON Default | Struct Default | Diff | K | M | W | Constraints |
 |----------|-----------|----------|-------------|---------------|------|---|---|---|-------------|
-| `resolutionDependentShift` | `Bool` | No | `false` | `true` | YES | Y | Y | Y | |
+| `resolutionDependentShift` | `Bool` | No | `false` | `false` | -- | Y | Y | Y | |
 | `t5TextEncoder` | `Bool` | No | `true` | `true` | -- | Y | -- | Y | |
 | `separateClipL` | `Bool` | No | `false` | `false` | -- | Y | -- | Y | |
 | `separateOpenClipG` | `Bool` | No | `false` | `false` | -- | Y | -- | Y | |
@@ -115,8 +118,8 @@ Legend:
 
 | JSON Key | Swift Type | Optional | JSON Default | Struct Default | Diff | K | M | W | Constraints |
 |----------|-----------|----------|-------------|---------------|------|---|---|---|-------------|
-| `clipLText` | `String?` | Yes | `nil` | `nil` | -- | Y | -- | Y | Cross-field: warning if non-null when `separateClipL` is false |
-| `openClipGText` | `String?` | Yes | `nil` | `nil` | -- | Y | -- | Y | Cross-field: warning if non-null when `separateOpenClipG` is false |
+| `clipLText` | `String?` | Yes | `null` | `null` | -- | Y | -- | Y | Cross-field: warning if non-null when `separateClipL` is false |
+| `openClipGText` | `String?` | Yes | `null` | `null` | -- | Y | -- | Y | Cross-field: warning if non-null when `separateOpenClipG` is false |
 
 ### Tiled Diffusion Parameters
 
@@ -141,8 +144,8 @@ Legend:
 | JSON Key | Swift Type | Optional | JSON Default | Struct Default | Diff | K | M | W | Constraints |
 |----------|-----------|----------|-------------|---------------|------|---|---|---|-------------|
 | `hiresFix` | `Bool` | No | `false` | `false` | -- | Y | Y | Y | |
-| `hiresFixWidth` | `Int32` | No | `1024` | `0` | YES | Y | -- | Y | CONFIRMED: `didSet` enforces multiple of 64; `0` is valid sentinel (means "use width") |
-| `hiresFixHeight` | `Int32` | No | `1024` | `0` | YES | Y | -- | Y | CONFIRMED: `didSet` enforces multiple of 64; `0` is valid sentinel |
+| `hiresFixWidth` | `Int32` | No | `0` | `0` | -- | Y | -- | Y | CONFIRMED: rounded to a multiple of 64 when encoded; `0` is valid sentinel (means "use width") |
+| `hiresFixHeight` | `Int32` | No | `0` | `0` | -- | Y | -- | Y | CONFIRMED: rounded to a multiple of 64 when encoded; `0` is valid sentinel |
 | `hiresFixStrength` | `Float` | No | `0.7` | `0.7` | -- | Y | -- | Y | |
 
 ### Stage 2 Parameters
@@ -150,8 +153,8 @@ Legend:
 | JSON Key | Swift Type | Optional | JSON Default | Struct Default | Diff | K | M | W | Constraints |
 |----------|-----------|----------|-------------|---------------|------|---|---|---|-------------|
 | `stage2Steps` | `Int32` | No | `10` | `10` | -- | Y | -- | Y | |
-| `stage2Guidance` | `Float` | No | `1.0` | `1.0` | -- | Y | -- | Y | |
-| `stage2Shift` | `Float` | No | `1.0` | `1.0` | -- | Y | -- | Y | |
+| `stage2Guidance` | `Float` | No | `1` | `1` | -- | Y | -- | Y | |
+| `stage2Shift` | `Float` | No | `1` | `1` | -- | Y | -- | Y | |
 
 ### TEA Cache Parameters
 
@@ -160,15 +163,15 @@ Legend:
 | `teaCache` | `Bool` | No | `false` | `false` | -- | Y | -- | Y | |
 | `teaCacheStart` | `Int32` | No | `5` | `5` | -- | Y | -- | Y | Cross-field: warning when present and `teaCache` is false |
 | `teaCacheEnd` | `Int32` | No | `-1` | `-1` | -- | Y | -- | Y | CONFIRMED: `-1` is a valid sentinel |
-| `teaCacheThreshold` | `Float` | No | `0.2` | `0.06` | YES | Y | -- | Y | |
+| `teaCacheThreshold` | `Float` | No | `0.06` | `0.06` | -- | Y | -- | Y | |
 | `teaCacheMaxSkipSteps` | `Int32` | No | `3` | `3` | -- | Y | -- | Y | |
 
 ### Causal Inference Parameters
 
 | JSON Key | Swift Type | Optional | JSON Default | Struct Default | Diff | K | M | W | Constraints |
 |----------|-----------|----------|-------------|---------------|------|---|---|---|-------------|
-| `causalInferenceEnabled` | `Bool` | No | `false` | `false` | -- | -- | -- | -- | Not in any fixture; parsed by JSON parser |
-| `causalInference` | `Int32` | No | `0` | `3` | YES | Y | -- | Y | |
+| `causalInferenceEnabled` | `Bool` | No | *(not read)* | `false` | -- | -- | -- | -- | Not in any fixture; parsed by JSON parser |
+| `causalInference` | `Int32` | No | `0` | `0` | -- | Y | -- | Y | |
 | `causalInferencePad` | `Int32` | No | `0` | `0` | -- | Y | -- | Y | |
 
 ### Video Parameters
@@ -178,14 +181,14 @@ Legend:
 | `fps` | `Int32` | No | `5` | `5` | -- | Y | -- | Y | Inert on image models |
 | `motionScale` | `Int32` | No | `127` | `127` | -- | Y | -- | Y | Inert on image models |
 | `guidingFrameNoise` | `Float` | No | `0.02` | `0.02` | -- | Y | -- | Y | Inert on image models |
-| `startFrameGuidance` | `Float` | No | `1.0` | `1.0` | -- | Y | -- | Y | Inert on image models |
+| `startFrameGuidance` | `Float` | No | `1` | `1` | -- | Y | -- | Y | Inert on image models |
 | `numFrames` | `Int32` | No | `14` | `14` | -- | Y | -- | Y | Inert on image models; no modular constraint |
 
 ### Refiner Parameters
 
 | JSON Key | Swift Type | Optional | JSON Default | Struct Default | Diff | K | M | W | Constraints |
 |----------|-----------|----------|-------------|---------------|------|---|---|---|-------------|
-| `refinerModel` | `String?` | Yes | `nil` | `nil` | -- | Y | -- | Y | CONFIRMED: `""` and `null` both mean "none" |
+| `refinerModel` | `String?` | Yes | `null` | `null` | -- | Y | -- | Y | CONFIRMED: `""` and `null` both mean "none" |
 | `refinerStart` | `Float` | No | `0.85` | `0.85` | -- | Y | -- | Y | Cross-field: warning when present and no `refinerModel` set |
 | `zeroNegativePrompt` | `Bool` | No | `false` | `false` | -- | Y | -- | Y | |
 
@@ -193,13 +196,28 @@ Legend:
 
 | JSON Key | Swift Type | Optional | JSON Default | Struct Default | Diff | K | M | W | Constraints |
 |----------|-----------|----------|-------------|---------------|------|---|---|---|-------------|
-| `faceRestoration` | `String?` | Yes | `nil` | `nil` | -- | Y | Y | Y | CONFIRMED: `""` and `null` both mean "none" |
+| `faceRestoration` | `String?` | Yes | `null` | `null` | -- | Y | Y | Y | CONFIRMED: `""` and `null` both mean "none" |
 
 ### Seed Mode
 
 | JSON Key | Swift Type | Optional | JSON Default | Struct Default | Diff | K | M | W | Constraints |
 |----------|-----------|----------|-------------|---------------|------|---|---|---|-------------|
-| `seedMode` | `Int32` | No | `2` | `2` | -- | Y | Y | Y | CONFIRMED: int 0..3, maps to SeedMode enum |
+| `seedMode` | `SeedMode` (Int8 enum) | No | `2` (`.scalealike`) | `2` (`.scalealike`) | -- | Y | Y | Y | CONFIRMED: int 0..3, maps to SeedMode enum |
+
+### Added in DrawThings-Swift 2.x
+
+| JSON Key | Swift Type | Optional | JSON Default | Notes |
+|----------|-----------|----------|-------------|-------|
+| `id` | `Int64` | No | `0` | Written by Draw Things and the client; always 0 |
+| `shiftForAudio` | `Float` | No | `3` | Shift for audio generation |
+| `usesSolAttention` | `Bool` | No | `false` | SOL attention |
+| `solAttentionStart` | `Int32` | No | `2` | |
+| `solAttentionTau` | `Float` | No | `0.5` | |
+| `expandPromptToJson` | `Bool` | No | `false` | |
+| `colorCalibration` | `ColorCalibration` | No | `"none"` | `"none"` / `"lab"`; `"disabled"` is read as `"none"` |
+| `name` | `String?` | Yes | absent | Client-only; written only when set |
+| `t5Text` | `String?` | Yes | absent | Written only when set |
+| `enableInpainting` | `Bool` | No | absent (`false`) | Client-only; written only when `true` |
 
 ### Nested Arrays
 
@@ -222,25 +240,20 @@ Legend:
 
 ### `controls[]` (ControlConfig)
 
-The client struct (`ControlConfig`) exposes 5 fields, but Draw Things exports **10 fields** per control entry. The additional 5 come from the FlatBuffer `Control` type.
+Draw Things exports **10 fields** per control entry, and `ControlConfig` reads and writes all of them in 2.x.
 
 | JSON Key | Swift Type | Optional | Default | In ControlConfig | Constraints |
 |----------|-----------|----------|---------|-----------------|-------------|
-| `file` | `String` | No | *(required)* | Yes | Must be non-empty; entry skipped if absent/empty |
+| `file` | `String` | No | *(required)* | Yes | Must be non-empty |
 | `weight` | `Float` | No | `1.0` | Yes | |
 | `guidanceStart` | `Float` | No | `0.0` | Yes | |
 | `guidanceEnd` | `Float` | No | `1.0` | Yes | |
-| `controlImportance` | `ControlMode` (string or int) | No | `.balanced` (0) | Yes | JSON key is `controlImportance`, maps to `controlMode` in struct; accepts string (`"balanced"`, `"prompt"`, `"control"`) or int (0..2) |
-| `noPrompt` | `Bool` | No | `false` | No | FlatBuffer field; exported by Draw Things |
-| `globalAveragePooling` | `Bool` | No | `true` | No | FlatBuffer default is `true`; fixture value is `false` |
-| `downSamplingRate` | `Float` | No | `1.0` | No | FlatBuffer field |
-| `targetBlocks` | `[String]` | No | `[]` | No | FlatBuffer field; empty array in fixture |
-| `inputOverride` | `String` (enum) | No | `""` | No | FlatBuffer enum `ControlInputType`; `""` = `.unspecified`; exported as string by Draw Things |
-
-> **Note:** `ConfigfromJSON.swift` only parses the first 5 fields. The additional 5 are set
-> programmatically by the client (e.g. `inputOverride = .inpaint` for mask-based inpainting).
-> Draw Things exports all 10, so the editor should preserve them as unknown-but-valid keys
-> within control entries rather than warning about them.
+| `controlImportance` | `ControlMode` (string) | No | `"balanced"` | Yes | Maps to `controlMode` in the struct; `"balanced"`, `"prompt"`, `"control"`. Integers (0..2) from older tools are mapped by the bridge; the legacy integer key `controlMode` is also read |
+| `noPrompt` | `Bool` | No | `false` | Yes | |
+| `globalAveragePooling` | `Bool` | No | `false` | Yes | |
+| `downSamplingRate` | `Float` | No | `1.0` | Yes | |
+| `targetBlocks` | `[String]` | No | `[]` | Yes | |
+| `inputOverride` | `String` (enum) | No | `""` | Yes | `ControlInputType` case name; `""` (app) and `"unspecified"` (client 2.2) both mean `.unspecified` |
 
 ---
 
@@ -323,15 +336,17 @@ These three fields treat `""` and `null` identically as "none":
 
 | Field | Evidence |
 |-------|----------|
-| `refinerModel` | `ConfigfromJSON.swift:194-197` — `guard let s = ... !s.isEmpty else { return nil }` |
-| `upscaler` | `ConfigfromJSON.swift:198-201` — same pattern |
-| `faceRestoration` | `ConfigfromJSON.swift:202-205` — same pattern |
+| `refinerModel` | `DrawThingsConfiguration+JSON.swift` — `readName` maps `""` to `nil` |
+| `upscaler` | same |
+| `faceRestoration` | same |
+
+`clipLText`, `openClipGText`, `t5Text` and `name` follow the same rule.
 
 The minimal krea fixture (`DT_krea2_robo_min.json`) exports these as `""` while the full fixture uses `null`. Both are valid. An empty-string `upscaler` may trigger a default 4x upscaler in Draw Things (warn).
 
-### 4.3 Cross-Field Dependency Rules (Warnings)
+### 4.3 Cross-Field Dependency Rules
 
-These are all **warnings**, not errors. The config is accepted but semantically suspect.
+None are errors. Rules 1 and 7 are **warnings** (semantically suspect). Rules 2–6 flag settings that have no effect, so they are **inert** (dimmed): Draw Things' full exports include hires-fix sizes and TEA cache values even when those features are off.
 
 | # | Condition | Warning |
 |---|-----------|---------|
@@ -347,7 +362,7 @@ These are all **warnings**, not errors. The config is accepted but semantically 
 
 Fields that are syntactically valid but functionally unused by the current model type. Render as `.inert` severity (dimmed), not as warnings.
 
-**Detection:** Use `LatentModelFamily.detect(from: model)`. If `nativeFrameRate != nil`, the model is a video model.
+**Detection:** Use `ModelFamily.detect(from: model)`. If `nativeFrameRate != nil`, the model is a video model.
 
 **On image models, these video fields are inert:**
 - `fps`
@@ -361,44 +376,34 @@ Fields that are syntactically valid but functionally unused by the current model
 
 Evidence: krea-full fixture (image model) carries `numFrames: 14`, `fps: 5`, `motionScale: 127`, `causalInference: 0`.
 
-### 4.5 Struct-Only Fields (Not in JSON)
+### 4.5 Client-Only Fields
 
-These fields exist on `DrawThingsConfiguration` but are **not parsed** by `ConfigfromJSON.swift`. They should not appear in JSON exports and should not be in the schema.
+`name` and `enableInpainting` are read and written by DrawThingsClient but ignored by the Draw Things app. Both are written only when set.
 
-| Struct Field | Type | Init Default | Notes |
-|-------------|------|-------------|-------|
-| `expandPromptToJson` | `Bool` | `false` | |
-| `enableInpainting` | `Bool` | `false` | Internal; adds inpaint control to FlatBuffer |
-| `name` | `String?` | `nil` | Config name, not a generation parameter |
-| `t5Text` | `String?` | `nil` | Separate T5 prompt; not parsed from JSON |
+### 4.6 Enum Spellings in JSON
 
-### 4.6 `colorCalibration` in JSON
+DrawThingsClient writes `compressionArtifacts`, `colorCalibration`, LoRA `mode`, control `controlImportance` and `inputOverride` as names. It reads LoRA `mode` and the legacy `controlMode` key as integers too. For the others, the editor's bridge maps integers written by older tools to names before decoding.
 
-`colorCalibration` appears in the minimal krea fixture (`DT_krea2_robo_min.json`) as `"none"`.
-- `ConfigfromJSON.swift` does **not** parse it, but Draw Things exports it.
-- The `ColorCalibration` enum has `.disabled` (0) and `.lab` (1).
-- `"none"` maps to `.disabled` (0). The JSON parser should accept both `"none"` and `"disabled"` as equivalent, and `"lab"` for `.lab`.
-- Since the JSON parser doesn't consume it today, this field sits in the gap between "struct-only" and "JSON-facing". The validator should accept it as a known key with string-to-enum mapping: `"none"` / `"disabled"` -> 0, `"lab"` -> 1.
+`inputOverride`: the Draw Things app writes `""` for "unspecified"; DrawThingsClient 2.2 writes `"unspecified"`. Both decode to `.unspecified`.
 
-### 4.7 Fixture-Only Key Not in Struct
+### 4.7 `causalInferenceEnabled`
 
-| JSON Key | Appears In | Notes |
-|----------|-----------|-------|
-| `id` | krea-full, wan22 (value `0`) | Not on `DrawThingsConfiguration`; set internally by `toFlatBufferData()` as `configT.id = 0`. Draw Things exports it but the JSON parser ignores it. Treat as unknown key. |
+Not a JSON key in 2.x. `causalInference > 0` enables causal inference, and `causalInference: 0` (what the app writes) disables it. The schema keeps `causalInferenceEnabled` so older documents validate, but its value is ignored.
 
-### 4.8 Default Value Discrepancies (JSON Parser vs Struct Init)
+### 4.8 Default Value History
 
-When a key is absent from JSON, `ConfigfromJSON.swift` fills in its default. In 7 cases these differ from the struct's `init` defaults. The **JSON parser defaults are authoritative** for the editor (they define what "absent key" means in a JSON document).
+DrawThings-Swift 2.2 changed the defaults to Draw Things' Z Image Turbo preset. Absent keys now mean:
 
-| Field | JSON Parser Default | Struct Init Default | Impact |
-|-------|-------------------|-------------------|--------|
-| `width` | `1024` | `512` | JSON parser assumes modern model resolution |
-| `height` | `1024` | `512` | Same |
-| `resolutionDependentShift` | `false` | `true` | JSON parser is conservative; struct enables by default |
-| `teaCacheThreshold` | `0.2` | `0.06` | Large difference; struct is more aggressive |
-| `causalInference` | `0` | `3` | JSON parser defaults to off; struct defaults to on |
-| `hiresFixWidth` | `1024` | `0` | JSON parser sets a real resolution; struct uses sentinel |
-| `hiresFixHeight` | `1024` | `0` | Same |
+| Field | 2.2 Default | Earlier editor default |
+|-------|------------|------------------------|
+| `model` | `z_image_turbo_1.0_q8p.ckpt` | *(required)* |
+| `steps` | `8` | `20` |
+| `sampler` | `17` (UniPC Trailing) | `0` (DPM++ 2M Karras) |
+| `guidanceScale` | `1` | `7` |
+| `shift` | `3` | `1` |
+| `teaCacheThreshold` | `0.06` | `0.2` |
+| `hiresFixWidth` / `hiresFixHeight` | `0` | `1024` |
+| `seed` | `-1` | `null` |
 
 ---
 
@@ -406,7 +411,7 @@ When a key is absent from JSON, `ConfigfromJSON.swift` fills in its default. In 
 
 ### Confirmed by `DT_Control_Example.json` fixture
 
-Draw Things exports **all 10 FlatBuffer fields** per control entry, not just the 5 that `ControlConfig` / `ConfigfromJSON.swift` parse. The fixture contains one PuLID control entry:
+Draw Things exports **all 10 FlatBuffer fields** per control entry; DrawThingsClient 2.x reads and writes all of them. The fixture contains one PuLID control entry:
 
 ```json
 {
@@ -426,13 +431,12 @@ Draw Things exports **all 10 FlatBuffer fields** per control entry, not just the
 ### Key observations
 
 - `inputOverride` is exported as an empty string (`""`), mapping to `.unspecified` (0). Non-empty values would be ControlInputType enum names (e.g. `"inpaint"`, `"depth"`, `"canny"`).
-- `globalAveragePooling` defaults to `true` in the FlatBuffer schema but is `false` in this fixture — the value is model-specific.
 - `targetBlocks` is an array of strings (empty here). Used for targeted ControlNet block selection.
-- The 5 extra fields (`noPrompt`, `globalAveragePooling`, `downSamplingRate`, `targetBlocks`, `inputOverride`) are not parsed by `ConfigfromJSON.swift` but should be preserved by the editor as valid keys within control entries.
+- `globalAveragePooling` defaults to `false` in `ControlConfig`.
 
 ---
 
-## 6. LatentModelFamily Reference
+## 6. ModelFamily Reference
 
 ### Families (15 total)
 
@@ -457,7 +461,7 @@ Draw Things exports **all 10 FlatBuffer fields** per control entry, not just the
 
 ### Detection Logic
 
-`LatentModelFamily.detect(from:)` uses two-phase matching:
+`ModelFamily.detect(from:)` uses two-phase matching:
 
 1. **Exact version match** (case-insensitive) — e.g. `"krea2"` -> `.qwen`, `"flux1"` -> `.flux`
 2. **Substring fallback** — e.g. filename containing `"krea"` -> `.qwen`, `"wan"` -> `.wan21` or `.wan22`
@@ -473,7 +477,7 @@ Notable aliases:
 
 ### Video Model Detection
 
-A model is a video model if and only if `LatentModelFamily.detect(from: model).nativeFrameRate != nil`.
+A model is a video model if and only if `ModelFamily.detect(from: model).nativeFrameRate != nil`.
 
 Video families: `wan21`, `wan22`, `hunyuanVideo`, `ltx2`, `ltx23`.
 
@@ -483,4 +487,4 @@ Video families: `wan21`, `wan22`, `hunyuanVideo`, `ltx2`, `ltx23`.
 
 1. **Numeric ranges.** Some ranges confirmed: LoRA `weight` (-1.5..2.5), `guidanceScale` (0..50.0), `shift` (UI 0.10..8.00, JSON accepts higher). Still no confirmed ranges for `strength`, `hiresFixStrength`, `refinerStart`, `stochasticSamplingGamma`, control `weight`, `guidanceEmbed`, etc. The struct has no range clamping. Prefer no rule over a wrong rule.
 
-2. **`causalInferenceEnabled` vs `causalInference`.** The JSON parser reads both, but no fixture contains `causalInferenceEnabled`. The relationship between the boolean flag and the integer value is unclear. Does `causalInference: 0` imply disabled? Or is the boolean truly independent?
+2. ~~`causalInferenceEnabled` vs `causalInference`~~ — resolved in 2.x; see 4.7.
