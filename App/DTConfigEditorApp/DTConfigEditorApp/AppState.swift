@@ -1,6 +1,5 @@
 import DTConfigEditorKit
 import DTConfigBridge
-import DrawThingsClient
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -25,6 +24,16 @@ enum EmissionStyleChoice: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+/// An action that replaces the document, so it asks first when there are unsaved changes.
+enum DocumentAction {
+    case newDocument
+    case paste
+    case revert
+    /// Open a file; nil shows the open panel.
+    case open(URL?)
+    case load(String)
+}
+
 @Observable
 final class AppState {
 
@@ -33,8 +42,25 @@ final class AppState {
     var model: ConfigEditorModel
     var documentURL: URL?
     var originalText: String
-    /// Keys present in the document when it was loaded/pasted, used by .preserveShape.
-    var loadedKeys: Set<String> = []
+    /// Undoable edits through the text view.
+    @ObservationIgnored let editor = ConfigEditorActions()
+
+    /// The document's shape for .preserveShape: the keys it was loaded with, plus keys the
+    /// user has since added and minus keys they removed. Re-emitting in another style
+    /// doesn't change it.
+    private(set) var shapeKeys: Set<String> = []
+    /// Keys of the text last produced by a style switch, to tell its keys from the user's edits.
+    @ObservationIgnored private var lastEmittedKeys: Set<String>?
+
+    /// An action waiting for the user to save or discard unsaved changes.
+    var pendingAction: DocumentAction?
+    /// Saving first makes no sense before reverting to the saved text.
+    var canSaveBeforePendingAction: Bool {
+        if case .revert = pendingAction { return false }
+        return true
+    }
+    /// An error to show the user.
+    var alertMessage: String?
 
     var isDirty: Bool { model.text != originalText }
 
@@ -91,14 +117,57 @@ final class AppState {
         self.defaultEmissionStyle = EmissionStyleChoice(
             rawValue: UserDefaults.standard.string(forKey: "defaultEmissionStyle") ?? "") ?? .nonDefaultOnly
         self.showInertDiagnostics = UserDefaults.standard.bool(forKey: "showInertDiagnostics")
+        self.emissionStyleChoice = defaultEmissionStyle
     }
 
     // MARK: - Document operations
 
+    /// Performs `action`, first asking to save or discard unsaved changes.
+    func request(_ action: DocumentAction) {
+        if isDirty {
+            pendingAction = action
+        } else {
+            perform(action)
+        }
+    }
+
+    /// Completes the pending action, saving first when asked to.
+    func resolvePendingAction(save: Bool) {
+        guard let action = pendingAction else { return }
+        pendingAction = nil
+        #if os(macOS)
+        if save {
+            saveFile { [weak self] in self?.perform(action) }
+            return
+        }
+        #endif
+        perform(action)
+    }
+
+    private func perform(_ action: DocumentAction) {
+        switch action {
+        case .newDocument:
+            newDocument()
+        case .paste:
+            pasteFromClipboard()
+        case .revert:
+            revert()
+        case .open(let url?):
+            readAndLoad(url: url)
+        case .open(nil):
+            #if os(macOS)
+            openFile()
+            #endif
+        case .load(let text):
+            loadText(text)
+        }
+    }
+
     func loadText(_ text: String, url: URL? = nil) {
         model.text = text
         originalText = text
-        loadedKeys = keysIn(text)
+        shapeKeys = currentKeys()
+        lastEmittedKeys = nil
         documentURL = url
         #if os(macOS)
         if let url { NSDocumentController.shared.noteNewRecentDocumentURL(url) }
@@ -106,7 +175,7 @@ final class AppState {
     }
 
     func revert() {
-        model.text = originalText
+        if !editor.replaceText(with: originalText) { model.text = originalText }
     }
 
     func markSaved(url: URL? = nil) {
@@ -120,18 +189,7 @@ final class AppState {
     }
 
     func newDocument() {
-        let empty = "{\n  \n}"
-        model.text = empty
-        originalText = empty
-        loadedKeys = []
-        documentURL = nil
-    }
-
-    private func keysIn(_ text: String) -> Set<String> {
-        let result = Parser.parse(text)
-        guard let json = result.value ?? result.valueRecovered,
-              case .object(let pairs) = json else { return [] }
-        return Set(pairs.map(\.key))
+        loadText("{\n  \n}")
     }
 
     // MARK: - Clipboard
@@ -168,22 +226,16 @@ final class AppState {
 
     // MARK: - Emission style
 
+    /// Re-emits the document in `choice`'s style as one undoable edit. The document stays
+    /// edited until saved.
     func switchEmissionStyle(to choice: EmissionStyleChoice) {
-        guard let config = model.configuration else {
-            emissionStyleChoice = choice
-            return
-        }
-        // Capture the current key set before re-emission if not already captured.
-        // This preserves the original document shape even if the user pasted via
-        // Cmd+V (bypassing loadText) or if a prior style switch reduced the keys.
-        if loadedKeys.isEmpty {
-            loadedKeys = currentKeys()
-        }
-        let style = emitStyle(for: choice)
-        let newText = ConfigurationInterop.text(from: config, style: style, unknownKeys: model.unknownKeys)
         emissionStyleChoice = choice
-        model.text = newText
-        originalText = newText
+        guard let config = model.configuration else { return }
+        updateShapeKeys()
+        let newText = ConfigurationInterop.text(
+            from: config, style: emitStyle(for: choice), unknownKeys: model.unknownKeys)
+        if !editor.replaceText(with: newText) { model.text = newText }
+        lastEmittedKeys = currentKeys()
     }
 
     func emitStyle(for choice: EmissionStyleChoice) -> EmitStyle {
@@ -191,13 +243,19 @@ final class AppState {
         case .full: return .full
         case .nonDefaultOnly: return .nonDefaultOnly
         case .preserveShape:
-            // If loadedKeys wasn't set (e.g. user pasted via Cmd+V into the text
-            // view rather than the toolbar button), capture from the current document.
-            if loadedKeys.isEmpty {
-                loadedKeys = currentKeys()
-            }
-            return .preserveShape(keys: loadedKeys)
+            updateShapeKeys()
+            return .preserveShape(keys: shapeKeys)
         }
+    }
+
+    /// Folds the user's edits since the last style switch into ``shapeKeys``.
+    private func updateShapeKeys() {
+        let current = currentKeys()
+        guard let emitted = lastEmittedKeys else {
+            shapeKeys = current
+            return
+        }
+        shapeKeys = shapeKeys.union(current.subtracting(emitted)).subtracting(emitted.subtracting(current))
     }
 
     func currentKeys() -> Set<String> {
@@ -210,13 +268,24 @@ final class AppState {
     // MARK: - Format / Sort
 
     func formatDocument() {
+        guard !editor.formatDocument() else { return }
         let formatted = JSONFormatter.format(model.text)
         if formatted != model.text { model.text = formatted }
     }
 
     func sortDocumentKeys() {
+        guard !editor.sortDocumentKeys() else { return }
         let sorted = JSONFormatter.sortKeys(model.text)
         if sorted != model.text { model.text = sorted }
+    }
+
+    func applyFixIt(_ fixIt: FixIt) {
+        guard !editor.applyFixIt(fixIt) else { return }
+        model.text = FixItApplicator.apply(fixIt, to: model.text)
+    }
+
+    func reveal(_ diagnostic: Diagnostic) {
+        editor.select(diagnostic.range)
     }
 
     // MARK: - Connection
@@ -225,7 +294,10 @@ final class AppState {
         connectionState = .connecting
         connectionError = nil
         do {
-            service = try DrawThingsService(address: connectionAddress, useTLS: connectionUseTLS)
+            let options = ConnectionOptions(
+                security: connectionUseTLS ? .tls() : .plaintext,
+                sharedSecret: connectionSecret.isEmpty ? nil : connectionSecret)
+            service = try DrawThingsService(address: connectionAddress, options: options)
             connectionState = .connected
         } catch {
             connectionState = .error
@@ -235,6 +307,9 @@ final class AppState {
     }
 
     func disconnect() {
+        if let service {
+            Task { await service.shutdown() }
+        }
         service = nil
         connectionState = .disconnected
         connectionError = nil
@@ -253,31 +328,33 @@ final class AppState {
         }
     }
 
-    func saveFile() {
+    /// Saves, asking for a location if the document has none; `completion` runs only on success.
+    func saveFile(completion: (() -> Void)? = nil) {
         if let url = documentURL {
-            writeToURL(url)
+            if writeToURL(url) { completion?() }
         } else {
-            saveAs()
+            saveAs(completion: completion)
         }
     }
 
-    func saveAs() {
+    func saveAs(completion: (() -> Void)? = nil) {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
         panel.nameFieldStringValue = documentURL?.lastPathComponent ?? "config.json"
         panel.begin { [weak self] response in
             guard let self, response == .OK, let url = panel.url else { return }
-            self.writeToURL(url)
+            if self.writeToURL(url) { completion?() }
         }
     }
 
-    private func writeToURL(_ url: URL) {
+    private func writeToURL(_ url: URL) -> Bool {
         do {
             try model.text.write(to: url, atomically: true, encoding: .utf8)
             markSaved(url: url)
+            return true
         } catch {
-            // In a real app, show an alert
-            print("Save failed: \(error)")
+            alertMessage = "Couldn't save \(url.lastPathComponent): \(error.localizedDescription)"
+            return false
         }
     }
     #endif
@@ -289,7 +366,7 @@ final class AppState {
             let text = try String(contentsOf: url, encoding: .utf8)
             loadText(text, url: url)
         } catch {
-            print("Open failed: \(error)")
+            alertMessage = "Couldn't open \(url.lastPathComponent): \(error.localizedDescription)"
         }
     }
 
@@ -330,18 +407,19 @@ final class AppState {
         return (e, w, i)
     }
 
+    /// Whether re-emitting the document in its own shape reproduces it exactly. Cached per
+    /// text, since the status bar asks on every render.
     var isRoundTripIdentical: Bool {
-        guard let config = model.configuration else { return false }
-        let keys = currentKeys()
-        let reemitted = ConfigurationInterop.text(
-            from: config, style: .preserveShape(keys: keys), unknownKeys: model.unknownKeys)
-        return reemitted == model.text
-    }
-
-    var filteredDiagnostics: [Diagnostic] {
-        if showInertDiagnostics {
-            return model.diagnostics
+        let text = model.text
+        if let cached = roundTripCache, cached.text == text { return cached.identical }
+        var identical = false
+        if let config = model.configuration {
+            identical = ConfigurationInterop.text(
+                from: config, style: .preserveShape(keys: currentKeys()),
+                unknownKeys: model.unknownKeys) == text
         }
-        return model.diagnostics.filter { $0.severity != .inert }
+        roundTripCache = (text, identical)
+        return identical
     }
+    @ObservationIgnored private var roundTripCache: (text: String, identical: Bool)?
 }

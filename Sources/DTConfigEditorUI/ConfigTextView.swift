@@ -21,15 +21,18 @@ import UIKit
 #if os(macOS)
 public struct ConfigTextView<Model: ConfigTextEditing & Observable>: NSViewRepresentable {
     public var model: Model
+    public var actions: ConfigEditorActions?
     @Environment(\.colorScheme) private var colorScheme
 
-    public init(model: Model) {
+    public init(model: Model, actions: ConfigEditorActions? = nil) {
         self.model = model
+        self.actions = actions
     }
 
     public func makeNSView(context: Context) -> NSView {
         let scrollView = NSTextView.scrollableTextView()
-        let textView = scrollView.documentView as! NSTextView
+        let textView = scrollView.documentView as? NSTextView ?? NSTextView(usingTextLayoutManager: true)
+        if scrollView.documentView !== textView { scrollView.documentView = textView }
         textView.isEditable = true
         textView.isRichText = false
         textView.usesFindBar = true
@@ -101,6 +104,7 @@ public struct ConfigTextView<Model: ConfigTextEditing & Observable>: NSViewRepre
         else { return }
 
         let coordinator = context.coordinator
+        actions?.coordinator = coordinator
         let theme = EditorTheme.resolved(for: colorScheme)
 
         textView.backgroundColor = NSColor(theme.background)
@@ -112,6 +116,8 @@ public struct ConfigTextView<Model: ConfigTextEditing & Observable>: NSViewRepre
             coordinator.isSyncing = true
             let sel = textView.selectedRanges
             textView.string = model.text
+            // The replacement isn't undoable, so earlier undo steps no longer apply.
+            textView.undoManager?.removeAllActions()
             let maxLen = (textView.string as NSString).length
             textView.selectedRanges = sel.map { v in
                 let r = v.rangeValue
@@ -147,10 +153,12 @@ public struct ConfigTextView<Model: ConfigTextEditing & Observable>: NSViewRepre
 
 public struct ConfigTextView<Model: ConfigTextEditing & Observable>: UIViewRepresentable {
     public var model: Model
+    public var actions: ConfigEditorActions?
     @Environment(\.colorScheme) private var colorScheme
 
-    public init(model: Model) {
+    public init(model: Model, actions: ConfigEditorActions? = nil) {
         self.model = model
+        self.actions = actions
     }
 
     public func makeUIView(context: Context) -> UITextView {
@@ -185,6 +193,7 @@ public struct ConfigTextView<Model: ConfigTextEditing & Observable>: UIViewRepre
 
     public func updateUIView(_ textView: UITextView, context: Context) {
         let coordinator = context.coordinator
+        actions?.coordinator = coordinator
         let theme = EditorTheme.resolved(for: colorScheme)
 
         textView.backgroundColor = UIColor(theme.background)
@@ -195,6 +204,8 @@ public struct ConfigTextView<Model: ConfigTextEditing & Observable>: UIViewRepre
             coordinator.isSyncing = true
             let sel = textView.selectedRange
             textView.text = model.text
+            // The replacement isn't undoable, so earlier undo steps no longer apply.
+            textView.undoManager?.removeAllActions()
             let maxLen = (textView.text as NSString).length
             let loc = min(sel.location, maxLen)
             textView.selectedRange = NSRange(location: loc,
@@ -240,7 +251,6 @@ public final class TextViewCoordinator: NSObject {
 
     #if os(macOS)
     weak var textView: NSTextView?
-    weak var gutterView: GutterRulerView?
     weak var gutterSideView: GutterSideView?
     private let popoverController = DiagnosticPopoverController()
     private let completionController = CompletionPopupController()
@@ -286,6 +296,11 @@ public final class TextViewCoordinator: NSObject {
                 selectByteOffset(offset)
             }
         }
+    }
+
+    /// Replace the whole document as a single undo operation.
+    public func replaceText(with newText: String) {
+        if newText != model.text { replaceAllText(with: newText) }
     }
 
     /// Apply a fix-it as a single undo operation.
@@ -556,7 +571,11 @@ public final class TextViewCoordinator: NSObject {
         if let textView = textViewUI {
             let fullRange = NSRange(location: 0, length: (textView.text as NSString).length)
             textView.selectedRange = fullRange
-            textView.replace(textView.selectedTextRange!, withText: newText)
+            if let range = textView.selectedTextRange {
+                textView.replace(range, withText: newText)
+            } else {
+                textView.text = newText
+            }
             model.text = textView.text
         } else {
             model.text = newText
@@ -676,18 +695,8 @@ extension TextViewCoordinator: NSTextViewDelegate {
 
         // Position near the cursor.
         let utf16 = textView.selectedRange().location
-        let glyphRange = NSRange(location: utf16, length: 0)
-        let origin = textView.textContainerOrigin
-        var rect: NSRect
-        if let layoutManager = textView.layoutManager {
-            rect = layoutManager.boundingRect(
-                forGlyphRange: glyphRange, in: textView.textContainer!)
-            rect.origin.x += origin.x
-            rect.origin.y += origin.y
-        } else {
-            let insertionRect = textView.firstRect(forCharacterRange: glyphRange, actualRange: nil)
-            rect = textView.convert(insertionRect, from: nil)
-        }
+        var rect = viewRect(forCharacterRange: NSRange(location: utf16, length: 0), in: textView)
+            ?? NSRect(x: textView.textContainerOrigin.x, y: textView.textContainerOrigin.y, width: 1, height: 14)
         rect.size.width = max(rect.size.width, 1)
         rect.size.height = max(rect.size.height, 14)
 
@@ -734,26 +743,28 @@ extension TextViewCoordinator {
         } else if overlapping != lastHoverDiagnostics {
             lastHoverDiagnostics = overlapping
             // Position the popover near the character.
-            let glyphRange = NSRange(location: utf16Offset, length: max(1, 0))
-            let textContainerOrigin = textView.textContainerOrigin
-            if let layoutManager = textView.layoutManager {
-                var rect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textView.textContainer!)
-                rect.origin.x += textContainerOrigin.x
-                rect.origin.y += textContainerOrigin.y
-                if rect.width > 0 && rect.height > 0 {
-                    popoverController.show(diagnostics: overlapping, relativeTo: rect, of: textView)
-                }
-            } else {
-                // Fallback: use cursor position.
-                let rect = NSRect(x: point.x, y: point.y, width: 1, height: 14)
-                popoverController.show(diagnostics: overlapping, relativeTo: rect, of: textView)
-            }
+            let length = (textView.string as NSString).length
+            let charRange = NSRange(location: min(utf16Offset, max(0, length - 1)), length: length > 0 ? 1 : 0)
+            var rect = viewRect(forCharacterRange: charRange, in: textView)
+                ?? NSRect(x: point.x, y: point.y, width: 1, height: 14)
+            rect.size.width = max(rect.size.width, 1)
+            rect.size.height = max(rect.size.height, 1)
+            popoverController.show(diagnostics: overlapping, relativeTo: rect, of: textView)
         }
     }
 
     @objc(mouseExited:) public func mouseExited(with event: NSEvent) {
         popoverController.dismiss()
         lastHoverDiagnostics = []
+    }
+
+    /// A character range's rect in the text view's coordinates. Uses the text input API
+    /// rather than `layoutManager`, which would switch a TextKit 2 view to TextKit 1.
+    private func viewRect(forCharacterRange range: NSRange, in textView: NSTextView) -> NSRect? {
+        guard let window = textView.window else { return nil }
+        let screenRect = textView.firstRect(forCharacterRange: range, actualRange: nil)
+        guard screenRect != .zero else { return nil }
+        return textView.convert(window.convertFromScreen(screenRect), from: nil)
     }
 }
 #else

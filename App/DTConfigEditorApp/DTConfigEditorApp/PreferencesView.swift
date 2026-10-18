@@ -19,7 +19,7 @@ struct PreferencesView: View {
                         Text(style.rawValue).tag(style)
                     }
                 }
-                .help("Emission style used when creating a new document from a struct")
+                .help("Emission style selected when the app starts")
 
                 Toggle("Show inert diagnostics", isOn: $appState.showInertDiagnostics)
                     .help("Show fields that are valid but unused by the current model family")

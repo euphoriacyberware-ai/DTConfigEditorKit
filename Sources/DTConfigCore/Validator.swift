@@ -8,7 +8,7 @@ public enum Validator {
     ) -> [Diagnostic] {
         var diagnostics: [Diagnostic] = []
 
-        guard let objectNode = findRootObject(result.root) else {
+        guard let objectNode = result.findRootObject() else {
             if result.errors.isEmpty {
                 diagnostics.append(Diagnostic(
                     range: result.root.byteRange,
@@ -27,7 +27,7 @@ public enum Validator {
             let valueNode = member.children[1]
             guard valueNode.kind != .error else { continue }
 
-            guard let key = extractKey(keyNode, tokens: result.tokens) else { continue }
+            guard let key = result.extractKey(from: keyNode) else { continue }
             let keyRange = tokenRange(for: .string, in: keyNode, tokens: result.tokens)
 
             let value = result.value(for: valueNode)
@@ -56,9 +56,8 @@ public enum Validator {
                 code: "required.model",
                 message: "Required key \"model\" is missing"))
         } else if case .string("") = fieldValues["model"]?.value {
-            let r = fieldValues["model"]!.valueRange
             diagnostics.append(Diagnostic(
-                range: r,
+                range: fieldValues["model"]?.valueRange ?? objectNode.byteRange,
                 severity: .error,
                 code: "value.model-empty",
                 message: "\"model\" must not be empty"))
@@ -91,19 +90,10 @@ public enum Validator {
 
     // MARK: - CST Helpers
 
-    private static func findRootObject(_ root: CSTNode) -> CSTNode? {
-        for child in root.children where child.kind == .value {
-            for grandchild in child.children where grandchild.kind == .object {
-                return grandchild
-            }
-        }
-        return nil
-    }
-
     private static func extractKey(_ node: CSTNode, tokens: [Token]) -> String? {
         for i in node.tokenRange where i < tokens.count {
             if tokens[i].kind == .string {
-                return decodeString(tokens[i].text)
+                return JSONString.decode(tokens[i].text)
             }
         }
         return nil
@@ -116,14 +106,6 @@ public enum Validator {
             }
         }
         return node.byteRange
-    }
-
-    private static func decodeString(_ raw: String) -> String {
-        guard raw.count >= 2, raw.hasPrefix("\"") else { return raw }
-        if raw.hasSuffix("\"") {
-            return String(raw.dropFirst().dropLast())
-        }
-        return String(raw.dropFirst())
     }
 
     // MARK: - Value Analysis
@@ -289,7 +271,7 @@ public enum Validator {
     ) {
         if kind == .string {
             guard let strToken = findToken(.string, in: valueNode, tokens: tokens) else { return }
-            let str = decodeString(strToken.text)
+            let str = JSONString.decode(strToken.text)
             if !strings.contains(str) {
                 diagnostics.append(Diagnostic(
                     range: strToken.range,
@@ -488,7 +470,7 @@ public enum Validator {
             if !isDefault(val, field: "refinerStart", schema: schema) {
                 diagnostics.append(Diagnostic(
                     range: entry.valueRange,
-                    severity: .warning,
+                    severity: .inert,
                     code: "cross-field.refiner-start-no-model",
                     message: "refinerStart has no effect without a refiner model"))
             }
@@ -501,7 +483,7 @@ public enum Validator {
         {
             diagnostics.append(Diagnostic(
                 range: clipEntry.valueRange,
-                severity: .warning,
+                severity: .inert,
                 code: "cross-field.clip-l-text-ignored",
                 message: "clipLText is ignored when separateClipL is false"))
         }
@@ -513,7 +495,7 @@ public enum Validator {
         {
             diagnostics.append(Diagnostic(
                 range: clipEntry.valueRange,
-                severity: .warning,
+                severity: .inert,
                 code: "cross-field.open-clip-g-text-ignored",
                 message: "openClipGText is ignored when separateOpenClipG is false"))
         }
@@ -524,7 +506,7 @@ public enum Validator {
                intFromValue(val) != 0 {
                 diagnostics.append(Diagnostic(
                     range: entry.valueRange,
-                    severity: .warning,
+                    severity: .inert,
                     code: "cross-field.hires-fix-disabled",
                     message: "hiresFixWidth is set but hiresFix is disabled"))
             }
@@ -532,7 +514,7 @@ public enum Validator {
                intFromValue(val) != 0 {
                 diagnostics.append(Diagnostic(
                     range: entry.valueRange,
-                    severity: .warning,
+                    severity: .inert,
                     code: "cross-field.hires-fix-disabled",
                     message: "hiresFixHeight is set but hiresFix is disabled"))
             }
@@ -547,7 +529,7 @@ public enum Validator {
                 {
                     diagnostics.append(Diagnostic(
                         range: entry.valueRange,
-                        severity: .warning,
+                        severity: .inert,
                         code: "cross-field.tea-cache-disabled",
                         message: "\(paramKey) is set but teaCache is disabled"))
                 }
@@ -600,7 +582,7 @@ public enum Validator {
 
     private static func extractStringValue(_ node: CSTNode, tokens: [Token]) -> String? {
         guard let t = findToken(.string, in: node, tokens: tokens) else { return nil }
-        return decodeString(t.text)
+        return JSONString.decode(t.text)
     }
 
     private static func isBoolField(_ entry: FieldEntry?, expected: Bool) -> Bool {

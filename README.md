@@ -2,10 +2,11 @@
 
 A schema-aware editor for [Draw Things](https://drawthings.ai) configuration JSON. Ships as an embeddable SwiftUI view with headless validation, plus a standalone macOS/iOS app for inspecting and editing configs.
 
-- macOS 14+ / iOS 17+
-- Swift 6.3, Swift Package Manager
+- macOS 15+ / iOS 18+ / visionOS 2+
+- Swift 6 language mode (tools 6.3), Swift Package Manager
+- Built on [DrawThings-Swift](https://github.com/euphoriacyberware-ai/DrawThings-Swift) 2.2: `DrawThingsConfiguration`'s `Codable` conformance is the single definition of Draw Things JSON
 - Zero-dependency parser and validator (no Foundation JSON, no Codable)
-- Lossless round-trip: numeric literals preserved as written, whitespace and key order untouched
+- Lossless editing: numeric literals preserved as written, whitespace and key order untouched
 
 ## Requirements and installation
 
@@ -14,14 +15,15 @@ Add DTConfigEditorKit as a Swift Package Manager dependency. Two library product
 | Product | What you get | Transitive dependencies |
 |---|---|---|
 | `DTConfigEditorKit` | Parser, validator, completions, TextKit 2 editor view | None beyond SwiftUI/AppKit/UIKit |
-| `DTConfigBridge` | `DrawThingsConfiguration` interop, model-family detection | DrawThingsClient, gRPC, SwiftNIO, SwiftProtobuf, FlatBuffers |
+| `DTConfigBridge` | `DrawThingsConfiguration` interop, model-family detection; re-exports `DrawThingsClient` | DrawThings-Swift 2.2 (DrawThingsClient, gRPC, SwiftNIO, SwiftProtobuf, FlatBuffers) |
 
 Most host apps need both. If you only need validation without the networking stack, `DTConfigEditorKit` alone is sufficient.
 
 ```swift
 // Package.swift
 dependencies: [
-    .package(url: "https://github.com/<org>/DTConfigEditorKit.git", from: "0.1.0"),
+    // No tagged releases yet.
+    .package(url: "https://github.com/euphoriacyberware-ai/DTConfigEditorKit.git", branch: "main"),
 ],
 targets: [
     .target(
@@ -52,7 +54,7 @@ struct EditorScreen: View {
             ConfigTextView(model: model)
             Button("Generate") {
                 guard let config = model.configuration else { return }
-                // pass config to DrawThingsService.generateImage(...)
+                // Pass config to DrawThingsService.generate(_:) or DrawThingsSession.generate(...)
             }
             .disabled(!model.isValid)
         }
@@ -68,7 +70,7 @@ let model = ConfigEditorModel(text: jsonString)
 
 ## The document model
 
-`ConfigEditorModel` owns a `String`. The `configuration` property is a **projection** of that text — it is `nil` whenever the document contains parse errors or is missing required fields (like `model`).
+`ConfigEditorModel` owns a `String`. The `configuration` property is a **projection** of that text, decoded with DrawThingsClient's `Codable` conformance — it is `nil` whenever the document contains parse errors or has no `model`. Keys that are missing take `DrawThingsConfiguration()` defaults (Draw Things' Z Image Turbo preset: 8 steps, UniPC Trailing, guidance 1, shift 3). A key whose value has the wrong type is skipped, and the validator reports it.
 
 ```
 text: String                              ← durable, always present
@@ -89,9 +91,18 @@ model.set("seed", to: .int("-1"))
 model.set("width", to: .int("1024"))
 ```
 
-This replaces only the target key's byte span in the parse tree. Every other byte — whitespace, key order, cursor position, undo history — stays identical.
+This replaces only the target key's byte span in the parse tree, and leaves every other byte — whitespace and key order — as it was. A missing key is inserted before the closing brace. Full re-emission only happens when the document has no root object.
 
-Full re-emission mid-edit would destroy the user's formatting and undo stack. The fallback to full re-emission only triggers when the document is unparseable.
+Changes to `model.text` from outside the view replace the text view's contents and clear its undo history. To make an undoable edit from a menu or toolbar, pass a `ConfigEditorActions` to the view and use it:
+
+```swift
+let actions = ConfigEditorActions()
+ConfigTextView(model: model, actions: actions)
+
+actions.formatDocument()          // also sortDocumentKeys(), applyFixIt(_:)
+actions.replaceText(with: newText)
+actions.select(diagnostic.range)
+```
 
 ## Emission styles
 
@@ -100,7 +111,7 @@ When creating a `ConfigEditorModel` from a `DrawThingsConfiguration`, the emissi
 | Style | Behavior | Default for |
 |---|---|---|
 | `.full` | Every key | — |
-| `.nonDefaultOnly` | Omit keys matching schema defaults | `ConfigEditorModel.init(_:)` |
+| `.nonDefaultOnly` | Omit keys equal to `DrawThingsConfiguration()` defaults (a random seed, `-1`, is omitted) | `ConfigEditorModel.init(_:)` |
 | `.preserveShape(keys:)` | Emit only the given set of keys | Paste/load path |
 
 ```swift
@@ -136,7 +147,7 @@ public struct Diagnostic: Sendable, Equatable, Codable {
 
 - `.error` — malformed JSON, wrong type, confirmed constraint violation (e.g. `width` not a multiple of 64)
 - `.warning` — semantically suspect but accepted (e.g. `loras[].mode == "refiner"` with no `refinerModel`)
-- `.inert` — valid but unused by the current model family (e.g. video fields on an image model); rendered dimmed, never as a problem
+- `.inert` — valid but has no effect: video fields on an image model, or settings of a disabled feature (hires fix, TEA cache, a refiner start with no refiner); rendered dimmed, never as a problem
 
 Diagnostic `code` strings are stable identifiers suitable for snapshot testing. `Diagnostic` conforms to `Codable` — each test fixture has a sibling `.expected.json` file.
 
@@ -148,8 +159,9 @@ Diagnostic `code` strings are stable identifiers suitable for snapshot testing. 
 ProblemsListView(
     diagnostics: model.diagnostics,
     text: model.text,
-    onSelect: { diagnostic in coordinator.selectRange(diagnostic.range) },
-    onApplyFixIt: { fixIt in coordinator.applyFixIt(fixIt) }
+    showInert: $showUnused,   // optional; otherwise the list keeps its own toggle
+    onSelect: { diagnostic in actions.select(diagnostic.range) },
+    onApplyFixIt: { fixIt in actions.applyFixIt(fixIt) }
 )
 ```
 
@@ -191,11 +203,11 @@ DTConfigBridge            DrawThingsClient interop — ConfigEditorModel,
 
 `DTConfigCore` imports nothing — not even Foundation. This keeps `swift test --filter DTConfigCoreTests` fast and lets lightweight embedders avoid the gRPC dependency tree entirely. A test asserts no imports exist in the module.
 
-`DTConfigBridge` is the only target allowed to import `DrawThingsClient`.
+`DTConfigBridge` is the only target allowed to import `DrawThingsClient`. It re-exports it, so `import DTConfigBridge` is enough to use `DrawThingsConfiguration` and `DrawThingsService`.
 
 ## Unknown-key handling
 
-Draw Things ships fields ahead of the client library. Unknown keys produce a **warning**, never an error, and are **never auto-removed**. The warning message notes the key may come from a newer Draw Things version.
+Draw Things ships fields ahead of the client library. The known keys are exactly the ones DrawThingsClient reads (`ConfigurationInterop.knownKeys`, derived from its encoder), and a test keeps the schema in step with them. Unknown keys produce a **warning**, never an error, and are **never auto-removed**. The warning message notes the key may come from a newer Draw Things version.
 
 `ConfigEditorModel.unknownKeys` is a sidecar that survives re-emission:
 
@@ -258,8 +270,8 @@ for d in diagnostics {
 - **Video-model constraints** (e.g. `numFrames` mod 4 for Wan models) are unverified.
 - **`ServerValueDomainProvider`** returns `nil` for all fields — DrawThingsClient does not yet expose a model-browsing API.
 - **`controls` array** schema is modelled but fixture coverage is thin (one fixture).
-- **`set(_:to:)` fallback path** (used only when the document is unparseable) handles a subset of fields: `width`, `height`, `steps`, `model`, `guidanceScale`, `seed`, `shift`, `strength`, `sampler`.
-- **App target** is a development/test harness, not yet production-ready.
+- **`inputOverride`**: DrawThingsClient 2.2 writes `"unspecified"` for an unset input override, where the Draw Things app writes `""`. Both decode the same.
+- **App target** is a development/test harness, not yet production-ready. Its connection sheet creates a `DrawThingsService` but doesn't contact the server until something uses it.
 
 ## License
 

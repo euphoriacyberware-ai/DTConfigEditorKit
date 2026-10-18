@@ -44,8 +44,8 @@ public final class GutterSideView: NSView {
         line.stroke()
 
         guard let textView,
-              let layoutManager = textView.layoutManager,
-              let textContainer = textView.textContainer
+              let layoutManager = textView.textLayoutManager,
+              let contentManager = layoutManager.textContentManager
         else { return }
 
         let font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
@@ -55,47 +55,57 @@ public final class GutterSideView: NSView {
         ]
 
         let visibleRect = textView.enclosingScrollView?.contentView.bounds ?? textView.visibleRect
-        let glyphRange = layoutManager.glyphRange(forBoundingRect: visibleRect, in: textContainer)
-        let charRange = layoutManager.characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
-
-        let text = textView.string as NSString
+        let containerOrigin = textView.textContainerOrigin
         let numberWidth = gutterWidth - iconSize - gutterPadding * 3
+        let documentStart = contentManager.documentRange.location
+        let firstVisible = layoutManager.textLayoutFragment(
+            for: CGPoint(x: 0, y: max(0, visibleRect.minY - containerOrigin.y)))
+        var lineNumber: Int?
 
-        // Count lines before the visible range to get the starting line number.
-        var lineNumber = 1
-        text.enumerateSubstrings(
-            in: NSRange(location: 0, length: min(charRange.location, text.length)),
-            options: [.byLines, .substringNotRequired]
-        ) { _, _, _, _ in
-            lineNumber += 1
-        }
+        // Each layout fragment is one paragraph (one source line), however it wraps.
+        layoutManager.enumerateTextLayoutFragments(
+            from: firstVisible?.rangeInElement.location ?? documentStart,
+            options: [.ensuresLayout, .ensuresExtraLineFragment]
+        ) { fragment in
+            let frame = fragment.layoutFragmentFrame
+            let yInGutter = frame.minY + containerOrigin.y - visibleRect.minY
+            if yInGutter > visibleRect.height { return false }
 
-        // Enumerate visible lines.
-        var glyphIndex = glyphRange.location
-        while glyphIndex < NSMaxRange(glyphRange) {
-            var lineGlyphRange = NSRange()
-            let lineRect = layoutManager.lineFragmentRect(
-                forGlyphAt: glyphIndex, effectiveRange: &lineGlyphRange)
-            let yInGutter = lineRect.origin.y - visibleRect.origin.y
+            let line = lineNumber ?? self.lineNumber(
+                atUTF16Offset: contentManager.offset(from: documentStart, to: fragment.rangeInElement.location),
+                in: textView.string)
+            lineNumber = line + 1
 
-            // Draw line number.
-            let numStr = "\(lineNumber)" as NSString
+            // Center on the fragment's first visual line.
+            let lineHeight = fragment.textLineFragments.first?.typographicBounds.height ?? frame.height
+
+            let numStr = "\(line)" as NSString
             let numSize = numStr.size(withAttributes: attrs)
-            let numX = numberWidth - numSize.width + gutterPadding
-            let numY = yInGutter + (lineRect.height - numSize.height) / 2
+            let numX = numberWidth - numSize.width + self.gutterPadding
+            let numY = yInGutter + (lineHeight - numSize.height) / 2
             numStr.draw(at: NSPoint(x: numX, y: numY), withAttributes: attrs)
 
-            // Draw severity icon.
-            if let map = lineMap, let severity = map.severity(forLine: lineNumber) {
-                let iconX = numberWidth + gutterPadding * 2
-                let iconY = yInGutter + (lineRect.height - iconSize) / 2
-                let iconRect = NSRect(x: iconX, y: iconY, width: iconSize, height: iconSize)
-                drawSeverityIcon(severity, in: iconRect)
+            if let map = self.lineMap, let severity = map.severity(forLine: line) {
+                let iconX = numberWidth + self.gutterPadding * 2
+                let iconY = yInGutter + (lineHeight - self.iconSize) / 2
+                let iconRect = NSRect(x: iconX, y: iconY, width: self.iconSize, height: self.iconSize)
+                self.drawSeverityIcon(severity, in: iconRect)
             }
-
-            lineNumber += 1
-            glyphIndex = NSMaxRange(lineGlyphRange)
+            return true
         }
+    }
+
+    /// The 1-based line number containing a UTF-16 offset.
+    private func lineNumber(atUTF16Offset offset: Int, in string: String) -> Int {
+        let text = string as NSString
+        var line = 1
+        text.enumerateSubstrings(
+            in: NSRange(location: 0, length: min(max(0, offset), text.length)),
+            options: [.byLines, .substringNotRequired]
+        ) { _, _, _, _ in
+            line += 1
+        }
+        return line
     }
 
     private func drawSeverityIcon(_ severity: Severity, in rect: NSRect) {
@@ -126,174 +136,20 @@ public final class GutterSideView: NSView {
     override public func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         guard let textView,
-              let layoutManager = textView.layoutManager,
-              let textContainer = textView.textContainer
+              let layoutManager = textView.textLayoutManager,
+              let contentManager = layoutManager.textContentManager
         else { return }
 
         let visibleRect = textView.enclosingScrollView?.contentView.bounds ?? textView.visibleRect
-        let textPoint = NSPoint(x: 0, y: point.y + visibleRect.origin.y)
-        let glyphIndex = layoutManager.glyphIndex(for: textPoint, in: textContainer)
-        let charIndex = layoutManager.characterIndexForGlyph(at: glyphIndex)
-
-        let text = textView.string as NSString
-        var clickedLine = 1
-        text.enumerateSubstrings(
-            in: NSRange(location: 0, length: min(charIndex, text.length)),
-            options: [.byLines, .substringNotRequired]
-        ) { _, _, _, _ in
-            clickedLine += 1
-        }
-        onGutterClick?(clickedLine)
+        let y = point.y + visibleRect.minY - textView.textContainerOrigin.y
+        guard let fragment = layoutManager.textLayoutFragment(for: CGPoint(x: 0, y: max(0, y))) else { return }
+        let offset = contentManager.offset(
+            from: contentManager.documentRange.location, to: fragment.rangeInElement.location)
+        onGutterClick?(lineNumber(atUTF16Offset: offset, in: textView.string))
     }
 
     @objc func scrollViewDidScroll(_ notification: Notification) {
         needsDisplay = true
-    }
-}
-
-// MARK: - GutterRulerView (legacy, kept for reference)
-
-/// A ruler view that displays line numbers and diagnostic severity icons
-/// in the gutter of an NSScrollView containing an NSTextView.
-/// NOTE: NSRulerView causes invisible text on macOS 26. Use GutterSideView instead.
-@MainActor
-public final class GutterRulerView: NSRulerView {
-
-    var lineMap: DiagnosticLineMap?
-    var theme: EditorTheme = .light
-    var onGutterClick: ((Int) -> Void)?
-
-    private let iconSize: CGFloat = 12
-    private let gutterPadding: CGFloat = 4
-
-    override public var requiredThickness: CGFloat {
-        let digitCount = max(3, String(lineMap?.lineCount ?? 1).count)
-        let digitWidth = CGFloat(digitCount) * 8.0  // approximate monospaced digit width
-        return digitWidth + iconSize + gutterPadding * 3
-    }
-
-    override public func draw(_ dirtyRect: NSRect) {
-        // Fill gutter background.
-        NSColor(theme.gutterBackground).setFill()
-        dirtyRect.fill()
-
-        // Draw separator line on the right edge.
-        NSColor(theme.gutterSeparator).setStroke()
-        let separatorX = bounds.maxX - 0.5
-        let line = NSBezierPath()
-        line.move(to: NSPoint(x: separatorX, y: dirtyRect.minY))
-        line.line(to: NSPoint(x: separatorX, y: dirtyRect.maxY))
-        line.lineWidth = 1
-        line.stroke()
-
-        guard let textView = clientView as? NSTextView,
-              let layoutManager = textView.textLayoutManager,
-              let contentManager = layoutManager.textContentManager
-        else { return }
-
-        let font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
-        let attrs: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: NSColor(theme.gutterText),
-        ]
-
-        let visibleRect = scrollView?.contentView.bounds ?? bounds
-        var lineNumber = 1
-        let numberWidth = requiredThickness - iconSize - gutterPadding * 3
-
-        layoutManager.enumerateTextLayoutFragments(
-            from: contentManager.documentRange.location,
-            options: [.ensuresLayout, .ensuresExtraLineFragment]
-        ) { fragment in
-            let fragmentFrame = fragment.layoutFragmentFrame
-            // Convert fragment frame to ruler coordinates.
-            let yInRuler = fragmentFrame.origin.y - visibleRect.origin.y
-
-            // Skip fragments outside the dirty rect (with margin).
-            if yInRuler + fragmentFrame.height < dirtyRect.minY - 20 {
-                lineNumber += 1
-                return true
-            }
-            if yInRuler > dirtyRect.maxY + 20 {
-                return false
-            }
-
-            // Draw line number.
-            let numStr = "\(lineNumber)" as NSString
-            let numSize = numStr.size(withAttributes: attrs)
-            let numX = numberWidth - numSize.width + gutterPadding
-            let numY = yInRuler + (fragmentFrame.height - numSize.height) / 2
-            numStr.draw(at: NSPoint(x: numX, y: numY), withAttributes: attrs)
-
-            // Draw severity icon.
-            if let map = lineMap, let severity = map.severity(forLine: lineNumber) {
-                let iconX = numberWidth + gutterPadding * 2
-                let iconY = yInRuler + (fragmentFrame.height - iconSize) / 2
-                let iconRect = NSRect(x: iconX, y: iconY, width: iconSize, height: iconSize)
-                drawSeverityIcon(severity, in: iconRect)
-            }
-
-            lineNumber += 1
-            return true
-        }
-    }
-
-    private func drawSeverityIcon(_ severity: Severity, in rect: NSRect) {
-        let symbolName: String
-        let color: NSColor
-        switch severity {
-        case .error:
-            symbolName = "xmark.circle.fill"
-            color = NSColor(theme.errorUnderline)
-        case .warning:
-            symbolName = "exclamationmark.triangle.fill"
-            color = NSColor(theme.warningUnderline)
-        case .inert:
-            return  // No icon for inert
-        }
-
-        if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: severity.rawValue) {
-            let config = NSImage.SymbolConfiguration(pointSize: iconSize - 2, weight: .regular)
-            let configured = image.withSymbolConfiguration(config) ?? image
-            configured.isTemplate = true
-            NSGraphicsContext.current?.saveGraphicsState()
-            color.set()
-            configured.draw(in: rect, from: .zero, operation: .sourceAtop, fraction: 1.0)
-            NSGraphicsContext.current?.restoreGraphicsState()
-        }
-    }
-
-    override public func mouseDown(with event: NSEvent) {
-        let point = convert(event.locationInWindow, from: nil)
-        let lineNumber = lineAtPoint(point)
-        if lineNumber > 0 {
-            onGutterClick?(lineNumber)
-        }
-    }
-
-    private func lineAtPoint(_ point: NSPoint) -> Int {
-        guard let textView = clientView as? NSTextView,
-              let layoutManager = textView.textLayoutManager,
-              let contentManager = layoutManager.textContentManager
-        else { return 0 }
-
-        let visibleRect = scrollView?.contentView.bounds ?? bounds
-        let textPoint = NSPoint(x: 0, y: point.y + visibleRect.origin.y)
-        var lineNumber = 1
-
-        layoutManager.enumerateTextLayoutFragments(
-            from: contentManager.documentRange.location,
-            options: [.ensuresLayout, .ensuresExtraLineFragment]
-        ) { fragment in
-            let frame = fragment.layoutFragmentFrame
-            if textPoint.y >= frame.minY && textPoint.y < frame.maxY {
-                return false
-            }
-            lineNumber += 1
-            return true
-        }
-
-        return lineNumber
     }
 }
 

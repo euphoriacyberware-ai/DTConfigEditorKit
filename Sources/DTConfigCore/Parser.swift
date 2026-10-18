@@ -39,7 +39,7 @@ public struct ParseResult: Sendable {
                 let token = tokens[i]
                 switch token.kind {
                 case .string:
-                    return .string(decodeStringLiteral(token.text))
+                    return .string(JSONString.decode(token.text))
                 case .number:
                     if token.text.contains(".") || token.text.contains("e") || token.text.contains("E") {
                         return .float(token.text)
@@ -85,61 +85,10 @@ public struct ParseResult: Sendable {
         for i in node.tokenRange {
             let token = tokens[i]
             if token.kind == .string {
-                return decodeStringLiteral(token.text)
+                return JSONString.decode(token.text)
             }
         }
         return nil
-    }
-
-    private func decodeStringLiteral(_ raw: String) -> String {
-        // Strip quotes
-        guard raw.count >= 2, raw.hasPrefix("\"") else { return raw }
-        let inner: Substring
-        if raw.hasSuffix("\"") {
-            inner = raw.dropFirst().dropLast()
-        } else {
-            inner = raw.dropFirst() // unterminated
-        }
-        guard inner.contains("\\") else { return String(inner) }
-
-        var result = ""
-        var it = inner.makeIterator()
-        while let ch = it.next() {
-            if ch == "\\" {
-                guard let esc = it.next() else {
-                    result.append("\\")
-                    break
-                }
-                switch esc {
-                case "\"": result.append("\"")
-                case "\\": result.append("\\")
-                case "/": result.append("/")
-                case "b": result.append("\u{08}")
-                case "f": result.append("\u{0C}")
-                case "n": result.append("\n")
-                case "r": result.append("\r")
-                case "t": result.append("\t")
-                case "u":
-                    var hex = ""
-                    for _ in 0..<4 {
-                        guard let h = it.next() else { break }
-                        hex.append(h)
-                    }
-                    if let code = UInt32(hex, radix: 16), let scalar = Unicode.Scalar(code) {
-                        result.append(Character(scalar))
-                    } else {
-                        result.append("\\u")
-                        result.append(hex)
-                    }
-                default:
-                    result.append("\\")
-                    result.append(esc)
-                }
-            } else {
-                result.append(ch)
-            }
-        }
-        return result
     }
 }
 

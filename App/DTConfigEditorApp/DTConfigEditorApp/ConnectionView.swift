@@ -1,5 +1,4 @@
 import DTConfigBridge
-import DrawThingsClient
 import SwiftUI
 
 struct ConnectionView: View {

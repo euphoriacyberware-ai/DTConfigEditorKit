@@ -13,19 +13,26 @@ public struct ProblemsListView: View {
 
     @State private var showErrors = true
     @State private var showWarnings = true
-    @State private var showInert = false
+    @State private var localShowInert = false
+    private let externalShowInert: Binding<Bool>?
 
+    /// - Parameter showInert: Binds the "Unused" filter to outside state, such as a
+    ///   preference. When nil, the list keeps its own state (off by default).
     public init(
         diagnostics: [Diagnostic],
         text: String,
+        showInert: Binding<Bool>? = nil,
         onSelect: @escaping (Diagnostic) -> Void,
         onApplyFixIt: ((FixIt) -> Void)? = nil
     ) {
         self.diagnostics = diagnostics
         self.lineIndex = LineIndex(text)
+        self.externalShowInert = showInert
         self.onSelect = onSelect
         self.onApplyFixIt = onApplyFixIt
     }
+
+    private var showInert: Binding<Bool> { externalShowInert ?? $localShowInert }
 
     public var body: some View {
         VStack(spacing: 0) {
@@ -51,7 +58,7 @@ public struct ProblemsListView: View {
                         }
                     }
                 }
-                if showInert {
+                if showInert.wrappedValue {
                     let inerts = diagnostics.filter { $0.severity == .inert }
                     if !inerts.isEmpty {
                         Section("Unused (\(inerts.count))") {
@@ -69,7 +76,7 @@ public struct ProblemsListView: View {
         HStack(spacing: 12) {
             filterToggle("Errors", systemImage: "xmark.circle.fill", color: .red, isOn: $showErrors)
             filterToggle("Warnings", systemImage: "exclamationmark.triangle.fill", color: .orange, isOn: $showWarnings)
-            filterToggle("Unused", systemImage: "minus.circle", color: .secondary, isOn: $showInert)
+            filterToggle("Unused", systemImage: "minus.circle", color: .secondary, isOn: showInert)
             Spacer()
         }
         .padding(.horizontal, 8)
