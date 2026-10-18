@@ -26,7 +26,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.5.0"),
-        .package(url: "https://github.com/euphoriacyberware-ai/DrawThings-Swift.git", from: "2.2.0"),
+        .package(url: "https://github.com/euphoriacyberware-ai/DrawThings-Swift.git", from: "2.3.0"),
     ],
     targets: [
         .target(name: "DTConfigCore"),
